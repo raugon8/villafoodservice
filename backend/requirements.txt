@@ -1,0 +1,18 @@
+# requirements.txt - Lista de dependencias de Python para el backend
+# Este archivo indica qué librerías necesita instalar pip para que el proyecto funcione
+
+# FastAPI: Framework web moderno para crear APIs REST con Python
+# Nos permite crear endpoints (rutas) que el frontend puede llamar
+fastapi==0.104.1
+
+# Uvicorn: Servidor web ASGI que ejecuta nuestra aplicación FastAPI
+# Es el que "levanta" el backend en http://localhost:8000
+uvicorn==0.24.0
+
+# SQLAlchemy: ORM (Object-Relational Mapping) para trabajar con bases de datos
+# Nos permite manejar la BD con clases de Python en vez de escribir SQL directamente
+sqlalchemy==2.0.23
+
+# Pydantic: Librería para validación de datos y creación de schemas
+# Valida automáticamente que los datos que llegan cumplan con el formato esperado
+pydantic==2.5.0

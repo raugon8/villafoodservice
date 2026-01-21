@@ -1,0 +1,41 @@
+# pubspec.yaml - Archivo de configuración del proyecto Flutter
+# Define el nombre, versión, dependencias y assets del proyecto
+
+name: villafood_frontend
+description: "Aplicación móvil y web para gestión de servicios alimenticios del centro educativo"
+
+# Versión de la aplicación
+version: 1.0.0+1
+
+# Configuración del entorno Flutter
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+# DEPENDENCIAS - Librerías que usa el proyecto
+dependencies:
+  # Flutter SDK - Framework base de Flutter (obligatorio)
+  flutter:
+    sdk: flutter
+
+  # http - Librería para hacer peticiones HTTP al backend
+  # Permite hacer POST, GET, PUT, DELETE a las APIs REST
+  # Ejemplo: register, login, obtener productos, crear pedidos
+  http: ^1.1.0
+
+# DEPENDENCIAS DE DESARROLLO - Solo para desarrollo, no van en la app final
+dev_dependencies:
+  # Herramientas de testing de Flutter
+  flutter_test:
+    sdk: flutter
+
+  # Linter - Analiza el código y sugiere mejoras de estilo
+  flutter_lints: ^2.0.0
+
+# Configuración de Flutter
+flutter:
+  # Habilita Material Design (diseño de Google)
+  uses-material-design: true
+
+  # Aquí se pueden agregar assets (imágenes, fuentes, etc.) más adelante
+  # assets:
+  #   - assets/images/
