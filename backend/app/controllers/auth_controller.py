@@ -4,18 +4,25 @@ from backend.database_manager.database import SessionLocal
 from backend.models.user_model import User
 from pydantic import BaseModel
 
-# Creamos el enrutador (gestor de caminos)
 router = APIRouter()
 
 
-# Validación de datos que entran (Schema)
+# --- ESQUEMAS (Validación de datos) ---
+
+# Para el Registro (Tarea 1)
 class UserCreate(BaseModel):
     nombre_usuario: str
     correo: str
     contraseña: str
 
 
-# Función para conectar con la BD en cada petición
+# Para el Login (NUEVO - Tarea 2)
+class UserLogin(BaseModel):
+    correo: str
+    contraseña: str
+
+
+# --- DEPENDENCIAS ---
 def get_db():
     db = SessionLocal()
     try:
@@ -24,34 +31,57 @@ def get_db():
         db.close()
 
 
-# --- LÓGICA DEL REGISTRO ---
+# --- ENDPOINTS ---
+
+# TAREA 1: REGISTRO
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # 1. Buscamos si el correo ya existe
+    # Verificar si existe
     existe = db.query(User).filter(User.correo == user_data.correo).first()
-
     if existe:
-        # Si existe, cortamos y devolvemos error 400
-        raise HTTPException(
-            status_code=400,
-            detail="El correo ya está registrado"
-        )
+        raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
-    # 2. Si no existe, preparamos el nuevo usuario
-    nuevo_usuario = User(
+    # Crear usuario
+    new_user = User(
         nombre_usuario=user_data.nombre_usuario,
         correo=user_data.correo,
         contraseña=user_data.contraseña
     )
 
-    # 3. Guardamos en la base de datos
-    db.add(nuevo_usuario)
+    db.add(new_user)
     db.commit()
-    db.refresh(nuevo_usuario)
+    db.refresh(new_user)
 
-    # 4. Devolvemos los datos limpios (sin contraseña)
     return {
-        "usuario_ID": nuevo_usuario.usuario_ID,
-        "nombre_usuario": nuevo_usuario.nombre_usuario,
-        "correo": nuevo_usuario.correo
+        "usuario_ID": new_user.usuario_ID,
+        "nombre_usuario": new_user.nombre_usuario,
+        "correo": new_user.correo
+    }
+
+
+# TAREA 2: LOGIN (NUEVO)
+@router.post("/login", status_code=status.HTTP_200_OK)
+async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    # [cite_start]1. Buscar usuario por correo [cite: 6]
+    user = db.query(User).filter(User.correo == user_data.correo).first()
+
+    # [cite_start]2. Si no existe -> Error 404 [cite: 6]
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+
+    # [cite_start]3. Comparar contraseña (texto plano por ahora) -> Error 401 [cite: 6]
+    if user.contraseña != user_data.contraseña:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Contraseña incorrecta"
+        )
+
+    # [cite_start]4. Si va bien, devolver datos (sin contraseña) [cite: 6]
+    return {
+        "usuario_ID": user.usuario_ID,
+        "nombre_usuario": user.nombre_usuario,
+        "correo": user.correo
     }
