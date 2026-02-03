@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # Importamos el controlador nuevo
-from backend.app.controllers import auth_controller
+from backend.controllers import auth_controller
 from backend.database_manager.database import init_db
 
 app = FastAPI()
