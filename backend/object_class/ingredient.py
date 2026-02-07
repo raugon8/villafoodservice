@@ -17,7 +17,7 @@ class IngredienteBase(BaseModel):
         return v
 
 class IngredienteCreate(IngredienteBase):
-    pass # Todos los campos de Base son obligatorios aquí [cite: 33]
+    pass  # Todos los campos de Base son obligatorios aquí
 
 class IngredienteUpdate(BaseModel):
     ingrediente_nombre: Optional[str] = None
@@ -29,7 +29,7 @@ class IngredienteUpdate(BaseModel):
 class IngredienteResponse(IngredienteBase):
     ingrediente_id: int
     ingrediente_activo: bool
-    estado_stock: str # Campo calculado ("crítico"/"bajo"/"normal")
+    estado_stock: str  # Campo calculado ("crítico"/"bajo"/"normal")
 
     class Config:
-        orm_mode = True
+        from_attributes = True

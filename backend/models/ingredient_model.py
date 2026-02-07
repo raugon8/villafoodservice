@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, Numeric
 from sqlalchemy.orm import relationship
-from database_manager.db_setup import Base #ajustar según la conexión
+from backend.database_manager.database import Base
 
 class Ingrediente(Base):
     __tablename__ = "ingredientes"
