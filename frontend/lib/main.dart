@@ -1,20 +1,18 @@
 // Importamos el paquete de Material Design de Flutter
 import 'package:flutter/material.dart';
+import 'package:villafood_frontend/screens_home/home_screen.dart';
+import 'screens_auth/login_screen.dart'; // carga la pantalla inicial
 
-// Importamos la pantalla de Login que creará el frontend
-import 'screens/auth/login_screen.dart';
+void main() => run_app();
 
-// ==========================================
-// FUNCIÓN PRINCIPAL - Punto de entrada de la app
-// ==========================================
-void main() {
-  runApp(MyApp());  // Ejecuta la aplicación
+// funcion de inicio sin mayusculas
+void run_app() {
+  runApp(const mi_app());
 }
 
-// ==========================================
-// CLASE PRINCIPAL DE LA APLICACIÓN
-// ==========================================
-class MyApp extends StatelessWidget {
+class mi_app extends StatelessWidget {
+  const mi_app({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -25,12 +23,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,  // Color principal azul
       ),
-      
-      // PANTALLA INICIAL: LoginScreen será lo primero que vea el usuario
-      home: LoginScreen(),
-      
-      // Oculta el banner de "DEBUG" en la esquina
-      debugShowCheckedModeBanner: false,
+      // define el login como punto de partida
+      home: const home_screen(),
     );
   }
 }
