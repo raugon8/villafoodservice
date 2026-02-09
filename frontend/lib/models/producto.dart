@@ -24,7 +24,7 @@ class producto {
       producto_id: json['producto_id'],
       producto_nombre: json['producto_nombre'],
       producto_descripcion: json['producto_descripcion'] ?? '',
-      producto_precio_unitario: (json['producto_precioUnitario'] as num).toDouble(),
+      producto_precio_unitario: (json['producto_precio_unitario'] as num).toDouble(),
       producto_categoria: json['producto_categoria'],
       unidades_disponibles: json['unidades_disponibles'] ?? 0,
       disponible: json['disponible'] ?? false,

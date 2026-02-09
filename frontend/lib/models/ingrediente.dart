@@ -23,10 +23,10 @@ class ingrediente {
     return ingrediente(
       ingrediente_id: json['ingrediente_id'],
       ingrediente_nombre: json['ingrediente_nombre'],
-      ingrediente_stock_actual: (json['ingrediente_stockActual'] as num).toDouble(),
-      ingrediente_stock_minimo: (json['ingrediente_stockMinimo'] as num).toDouble(),
-      ingrediente_unidad_medida: json['ingrediente_unidadMedida'],
-      ingrediente_precio_unitario: (json['ingrediente_precioUnitario'] as num).toDouble(),
+      ingrediente_stock_actual: (json['ingrediente_stock_actual'] as num).toDouble(),
+      ingrediente_stock_minimo: (json['ingrediente_stock_minimo'] as num).toDouble(),
+      ingrediente_unidad_medida: json['ingrediente_unidad_medida'],
+      ingrediente_precio_unitario: (json['ingrediente_precio_unitario'] as num).toDouble(),
       estado_stock: json['estado_stock'] ?? 'normal',
     );
   }
