@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../screens_ingredientes/ingredientes_list_screen.dart';
 import '../screens_productos/productos_list_screen.dart';
+import '../screens_client/cart_screen.dart'; // import para el carrito
+import '../screens_client/orders_screen.dart'; // import para mis pedidos
+import '../screens_staff/order_list_screen.dart'; // import para gestion staff
 
 class home_screen extends StatelessWidget {
   const home_screen({super.key});
@@ -13,17 +16,34 @@ class home_screen extends StatelessWidget {
         crossAxisCount: 2, // rejilla de dos columnas
         padding: const EdgeInsets.all(20),
         children: [
-          // boton para ir a ingredientes
-          GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ingredientes_list_screen())),
-            child: Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.kitchen, size: 50), Text('ingredientes')])),
-          ),
-          // boton para ir a productos
-          GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const productos_list_screen())),
-            child: Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.restaurant_menu, size: 50), Text('productos')])),
-          ),
+          // gestion de ingredientes (tarea 3)
+          _crear_boton(context, Icons.kitchen, 'ingredientes', const ingredientes_list_screen()),
+          
+          // gestion de productos (tarea 4)
+          _crear_boton(context, Icons.restaurant_menu, 'productos', const productos_list_screen()),
+          
+          // carrito de compras (tarea 5)
+          _crear_boton(context, Icons.shopping_cart, 'carrito', const cart_screen()),
+          
+          // mis pedidos - cliente (tarea 5)
+          _crear_boton(context, Icons.history, 'mis pedidos', const orders_screen()),
+          
+          // gestion pedidos - staff (tarea 6)
+          _crear_boton(context, Icons.assignment, 'gestion staff', const order_list_screen()),
         ],
+      ),
+    );
+  }
+
+  // funcion auxiliar para crear botones del menu rapido
+  Widget _crear_boton(BuildContext context, IconData icono, String texto, Widget pantalla) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => pantalla)),
+      child: Card(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [Icon(icono, size: 40), Text(texto)],
+        ),
       ),
     );
   }

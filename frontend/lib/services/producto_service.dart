@@ -20,7 +20,7 @@ class producto_service {
         disponible: true
       ),
     ];
-    // --- codigo real comentado ---
+    // codigo real comentado
     /* final response = await http.get(Uri.parse('$base_url/productos'));
        if (response.statusCode == 200) {
          List data = jsonDecode(response.body);

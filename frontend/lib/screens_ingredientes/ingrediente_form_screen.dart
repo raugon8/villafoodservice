@@ -22,10 +22,10 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
       try {
         await service_instancia.create_ingrediente({
           'ingrediente_nombre': nombre_controller.text,
-          'ingrediente_stockActual': double.parse(stock_actual_controller.text),
-          'ingrediente_stockMinimo': double.parse(stock_minimo_controller.text),
-          'ingrediente_unidadMedida': unidad_seleccionada,
-          'ingrediente_precioUnitario': double.parse(precio_controller.text),
+          'ingrediente_stock_actual': double.parse(stock_actual_controller.text),
+          'ingrediente_stock_minimo': double.parse(stock_minimo_controller.text),
+          'ingrediente_unidad_medida': unidad_seleccionada,
+          'ingrediente_precio_unitario': double.parse(precio_controller.text),
         });
         Navigator.pop(context); // vuelve al listado tras exito
       } catch (e) {
