@@ -8,6 +8,7 @@ from controllers.ingredient_controller import router as ingredient_router
 from controllers.product_controller import router as product_router
 from controllers.order_controller import router as order_router
 from controllers.dashboard_controller import router as dashboard_router
+from controllers.category_controller import router as category_router #
 
 app = FastAPI()
 
@@ -28,6 +29,7 @@ app.include_router(auth_router, prefix="/auth") # [cite: 9]
 app.include_router(ingredient_router) # [cite: 63, 65]
 app.include_router(product_router) # [cite: 432, 434]
 app.include_router(order_router) # [cite: 551]
-app.include_router(dashboard_router) # [cite: 432]
+app.include_router(dashboard_router) #
+app.include_router(category_router) #
 
-# Comentario: Recuerda que el prefijo /dashboard se añadio en el controlador
+# Comentario: El prefijo /categories se gestiona dentro de su propio controlador

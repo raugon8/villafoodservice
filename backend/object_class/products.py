@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from decimal import Decimal
-
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=100)
     description: Optional[str] = None
@@ -36,3 +35,22 @@ class ProductResponse(ProductBase):
 
     class Config:
         orm_mode = True
+
+class ProductSearchFilters(BaseModel):
+    """Filtros disponibles para la busqueda de productos"""
+    search_query: Optional[str] = None
+    service: Optional[str] = None # cafeteria, restaurante, reposteria
+    category_id: Optional[int] = None
+    available_only: bool = False
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+    active_only: bool = True
+    sort_by: Optional[str] = "name_asc" # name_asc, price_desc, popularity, etc.
+    skip: int = 0
+    limit: int = 20
+
+class ProductSearchResponse(BaseModel):
+    """Respuesta con resultados de busqueda y metadatos"""
+    products: List[ProductResponse]
+    total_count: int
+    filters_applied: ProductSearchFilters
