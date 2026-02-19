@@ -1,30 +1,91 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/producto.dart';
+import '../models/producto_ingrediente.dart';
 
 class producto_service {
   static const String base_url = 'http://localhost:8000';
 
-  // obtiene todos los productos con su stock calculado
   Future<List<producto>> get_productos() async {
-    // --- simulacion activa ---
-    await Future.delayed(const Duration(seconds: 1));
-    return [
-      producto(
-        producto_id: 1, 
-        producto_nombre: 'bocadillo jamon', 
-        producto_descripcion: 'con queso', 
-        producto_precio_unitario: 3.50, 
-        producto_categoria: 'restaurante', 
-        unidades_disponibles: 3, // calculado segun ingredientes
-        disponible: true
-      ),
-    ];
-    // --- codigo real comentado ---
-    /* final response = await http.get(Uri.parse('$base_url/productos'));
-       if (response.statusCode == 200) {
-         List data = jsonDecode(response.body);
-         return data.map((p) => producto.from_json(p)).toList();
-       } throw Exception('error carga productos'); */
+    final response = await http.get(Uri.parse('$base_url/productos/'));
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
+      return data.map((p) => producto.from_json(p)).toList();
+    }
+    throw Exception('Error al cargar productos');
+  }
+
+  Future<producto> get_producto(int id) async {
+    final response = await http.get(Uri.parse('$base_url/productos/$id'));
+    if (response.statusCode == 200) {
+      return producto.from_json(jsonDecode(response.body));
+    }
+    throw Exception('Error al obtener producto');
+  }
+
+  Future<producto> create_producto(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$base_url/productos/'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return producto.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al crear producto');
+  }
+
+  Future<producto> update_producto(int id, Map<String, dynamic> data) async {
+    final response = await http.put(
+      Uri.parse('$base_url/productos/$id'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 200) {
+      return producto.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al actualizar producto');
+  }
+
+  Future<void> delete_producto(int id) async {
+    final response = await http.delete(Uri.parse('$base_url/productos/$id'));
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('Error al eliminar producto');
+    }
+  }
+
+  // ─── Ingredientes del producto ───────────────────────────────────────────
+
+  Future<List<producto_ingrediente>> get_ingredientes_producto(int producto_id) async {
+    final response = await http.get(Uri.parse('$base_url/productos/$producto_id'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List lista = data['ingredientes'] ?? [];
+      return lista.map((i) => producto_ingrediente.from_json(i)).toList();
+    }
+    throw Exception('Error al obtener ingredientes del producto');
+  }
+
+  Future<void> agregar_ingrediente(int producto_id, int ingrediente_id, double cantidad) async {
+    final response = await http.post(
+      Uri.parse('$base_url/productos/$producto_id/ingredientes'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'ingrediente_id': ingrediente_id,
+        'cantidad_necesaria': cantidad,
+      }),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al agregar ingrediente');
+    }
+  }
+
+  Future<void> quitar_ingrediente(int producto_id, int ingrediente_id) async {
+    final response = await http.delete(
+      Uri.parse('$base_url/productos/$producto_id/ingredientes/$ingrediente_id'),
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al quitar ingrediente');
+    }
   }
 }

@@ -18,15 +18,15 @@ class ingrediente {
     required this.estado_stock,
   });
 
-  // mapea datos desde el json del servidor
   factory ingrediente.from_json(Map<String, dynamic> json) {
     return ingrediente(
       ingrediente_id: json['ingrediente_id'],
       ingrediente_nombre: json['ingrediente_nombre'],
-      ingrediente_stock_actual: (json['ingrediente_stock_actual'] as num).toDouble(),
-      ingrediente_stock_minimo: (json['ingrediente_stock_minimo'] as num).toDouble(),
-      ingrediente_unidad_medida: json['ingrediente_unidad_medida'],
-      ingrediente_precio_unitario: (json['ingrediente_precio_unitario'] as num).toDouble(),
+      // ✅ protección contra null en todos los campos numéricos
+      ingrediente_stock_actual: double.parse((json['ingrediente_stockActual'] ?? 0).toString()),
+      ingrediente_stock_minimo: double.parse((json['ingrediente_stockMinimo'] ?? 0).toString()),
+      ingrediente_unidad_medida: json['ingrediente_unidadMedida'] ?? 'kg',
+      ingrediente_precio_unitario: double.parse((json['ingrediente_precioUnitario'] ?? 0).toString()),
       estado_stock: json['estado_stock'] ?? 'normal',
     );
   }
