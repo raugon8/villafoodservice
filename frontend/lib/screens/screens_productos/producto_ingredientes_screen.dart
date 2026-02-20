@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/producto_ingrediente.dart';
+import '../../../models/producto_ingrediente.dart';
 
 class producto_ingredientes_screen extends StatefulWidget {
   final String nombre_producto;

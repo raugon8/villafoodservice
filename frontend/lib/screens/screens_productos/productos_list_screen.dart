@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/producto_service.dart';
-import '../../models/producto.dart';
-import '../screens_productos/producto_ingredientes_screen.dart';
+import '../../../services/producto_service.dart';
+import '../../../models/producto.dart';
+import 'producto_ingredientes_screen.dart';
 class productos_list_screen extends StatefulWidget {
   const productos_list_screen({super.key});
   @override

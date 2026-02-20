@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/ingrediente_service.dart';
-import '../../models/ingrediente.dart';
-import '../screens_ingredientes/ingrediente_form_screen.dart';
+import '../../../services/ingrediente_service.dart';
+import '../../../models/ingrediente.dart';
+import 'ingrediente_form_screen.dart';
 
 class ingredientes_list_screen extends StatefulWidget {
   const ingredientes_list_screen({super.key});
