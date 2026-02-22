@@ -3,8 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Importamos los controladores
 from backend.controllers import auth_controller
-from backend.controllers import ingredient_controller  
-from backend.controllers import producto_controller    
+from backend.controllers import ingredient_controller
+from backend.controllers import producto_controller
+from backend.controllers import order_controller
 
 from backend.database_manager.database import init_db
 
@@ -24,5 +25,6 @@ init_db()
 
 # Conectamos los controladores
 app.include_router(auth_controller.router, prefix="/auth")
-app.include_router(ingredient_controller.router)  
-app.include_router(producto_controller.router)    
+app.include_router(ingredient_controller.router)
+app.include_router(producto_controller.router)
+app.include_router(order_controller.router)

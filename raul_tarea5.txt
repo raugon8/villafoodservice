@@ -1,0 +1,255 @@
+﻿=== products.py de RAÚL ===
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List
+from decimal import Decimal
+
+class ProductBase(BaseModel):
+    name: str = Field(..., max_length=100)
+    description: Optional[str] = None
+    price: Decimal = Field(..., gt=0) # [cite: 388]
+    category: str
+
+    @validator('category')
+    def CheckCategory(cls, v):
+        valid_categories = ["Cafeter├¡a", "Restaurante", "Reposter├¡a"]
+        if v not in valid_categories:
+            raise ValueError(f"Categor├¡a inv├ílida. Use: {valid_categories}")
+        return v
+
+class ProductCreate(ProductBase):
+    pass
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    category: Optional[str] = None
+
+class ProductIngredientBase(BaseModel):
+    ingredient_id: int
+    quantity: Decimal = Field(..., gt=0)
+
+class ProductResponse(ProductBase):
+    product_id: int
+    product_active: bool
+    units_available: int
+    is_available: bool 
+
+    class Config:
+        orm_mode = True
+
+=== main.py de RAÚL ===
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from backend.controllers import auth_controller
+from backend.database_manager.database import init_db
+from controllers.product_controller import router as product_router
+app = FastAPI()
+
+# Configuraci├│n de permisos (CORS) para que el Frontend pueda entrar
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Creamos las tablas al iniciar la aplicaci├│n
+init_db()
+
+# Conectamos el controlador de autenticaci├│n con el prefijo /auth
+app.include_router(auth_controller.router, prefix="/auth")
+app.include_router(product_router)
+
+=== orders.py de RAÚL (object_class) ===
+from database_manager.database import Base
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional
+from datetime import datetime
+
+# --- DATABASE MODELS (SQLAlchemy) ---
+
+class OrderModel(Base):
+    """Table to store general order information"""
+    __tablename__ = "orders"
+
+    order_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.usuario_id"), nullable=False)
+    order_date_time = Column(DateTime, default=datetime.now)
+    order_status = Column(String(20), default="pendiente")
+    order_total = Column(Numeric(10, 2), nullable=False)
+    order_notes = Column(String, nullable=True)
+
+    # Relations
+    details = relationship("OrderDetailModel", back_populates="order", cascade="all, delete-orphan")
+    user = relationship("UserModel", back_populates="orders")
+
+class OrderDetailModel(Base):
+    """Table to store each product inside an order"""
+    __tablename__ = "order_details"
+
+    detail_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    order_id = Column(Integer, ForeignKey("orders.order_id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.product_id"), nullable=False)
+    detail_quantity = Column(Integer, nullable=False)
+    detail_unit_price = Column(Numeric(10, 2), nullable=False)
+    detail_subtotal = Column(Numeric(10, 2), nullable=False)
+
+    # Relation with main order
+    order = relationship("OrderModel", back_populates="details")
+
+# --- VALIDATION SCHEMAS (Pydantic) ---
+
+class CartDetailBase(BaseModel):
+    """Schema for products added to the cart"""
+    product_id: int
+    quantity: int = Field(..., gt=0, le=50) # Validates quantity between 1 and 50
+
+class OrderCreate(BaseModel):
+    """Schema to create a new order"""
+    items: List[CartDetailBase]
+    order_notes: Optional[str] = None
+
+class OrderStatusUpdate(BaseModel):
+    """Schema to change the status of an order"""
+    order_status: str
+
+    @validator('order_status')
+    def CheckValidStatus(cls, v):
+        valid_states = ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cancelado']
+        if v not in valid_states:
+            raise ValueError(f"Estado no permitido. Use: {valid_states}")
+        return v
+
+class OrderResponse(BaseModel):
+    """Detailed order info for response"""
+    order_id: int
+    user_id: int
+    order_date_time: datetime
+    order_status: str
+    order_total: float
+    order_notes: Optional[str]
+
+    class Config:
+        orm_mode = True
+
+class OrderListResponse(BaseModel):
+    """Summary of an order for lists"""
+    order_id: int
+    order_date_time: datetime
+    order_status: str
+    order_total: float
+    items_count: int
+
+    class Config:
+        orm_mode = True
+
+=== order_controller.py de RAÚL ===
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from database_manager.database import get_db
+from object_class.orders import (
+    OrderCreate, OrderResponse, OrderListResponse, OrderStatusUpdate, CartDetailBase
+)
+# We will import Adan's services once he creates them
+from services import order_service
+
+router = APIRouter(prefix="/pedidos", tags=["pedidos"])
+
+@router.post("/validar-carrito")
+def ValidateCart(items: List[CartDetailBase], db: Session = Depends(get_db)):
+    """Checks if products in cart are available"""
+    return order_service.validate_cart(db, items)
+
+@router.post("/crear", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+def CreateOrder(order_data: OrderCreate, user_id: int, db: Session = Depends(get_db)):
+    """Creates a new order and updates stock"""
+    return order_service.create_order(db, user_id, order_data)
+
+@router.get("/{order_id}", response_model=OrderResponse)
+def GetOrderById(order_id: int, db: Session = Depends(get_db)):
+    """Gets all details of a specific order"""
+    order = order_service.get_order_by_id(db, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    return order
+
+@router.get("/", response_model=List[OrderListResponse])
+def ListOrders(
+    user_id: Optional[int] = None,
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Lists orders with optional filters"""
+    return order_service.list_orders(db, user_id, status, skip, limit)
+
+@router.patch("/{order_id}/estado", response_model=OrderResponse)
+def UpdateOrderStatus(order_id: int, status_data: OrderStatusUpdate, db: Session = Depends(get_db)):
+    """Changes order status (e.g., from pending to ready)"""
+    return order_service.update_order_status(db, order_id, status_data.order_status)
+
+@router.delete("/{order_id}/cancelar")
+def CancelOrder(order_id: int, user_id: int, db: Session = Depends(get_db)):
+    """Cancels an order and restores stock"""
+    return order_service.cancel_order(db, order_id, user_id)
+
+=== user_model.py de RAÚL ===
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
+from database_manager.database import Base
+
+class UserModel(Base):
+    __tablename__ = "usuarios"
+
+    # Columns using snake_case
+    usuario_id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre_usuario = Column(String, nullable=False)
+    correo = Column(String, unique=True, nullable=False)
+    contrase├▒a = Column(String, nullable=False)
+
+    # Relation with orders table
+    orders = relationship("OrderModel", back_populates="user")
+
+=== product_model.py de RAÚL ===
+from sqlalchemy import Column, Integer, String, Boolean, Numeric, Text
+from sqlalchemy.orm import relationship
+from database_manager.database import Base
+
+class ProductModel(Base):
+    __tablename__ = "products"
+
+    product_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    product_name = Column(String(100), unique=True, nullable=False)
+    product_description = Column(Text, nullable=True)
+    product_price = Column(Numeric(10, 2), nullable=False)
+    product_category = Column(String(50), nullable=False)
+    product_active = Column(Boolean, default=True)
+
+
+    product_ingredients = relationship("ProductIngredientModel", back_populates="product")
+
+=== product_ingredient_model.py de RAÚL ===
+from sqlalchemy import Column, Integer, Numeric, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
+from database_manager.database import Base
+
+class ProductIngredientModel(Base):
+    __tablename__ = "product_ingredients"
+
+    product_ingredient_id = Column(Integer, primary_key=True, autoincrement=True) # [cite: 373]
+    product_id = Column(Integer, ForeignKey("products.product_id"), nullable=False) # [cite: 374]
+    ingredient_id = Column(Integer, ForeignKey("ingredients.ingrediente_id"), nullable=False) # [cite: 375, 376]
+    quantity = Column(Numeric(10, 2), nullable=False) # [cite: 377]
+
+    # Relationships
+    product = relationship("ProductModel", back_populates="product_ingredients") # [cite: 379]
+    ingredient = relationship("Ingrediente", back_populates="productos_vinculados") # [cite: 380]
+
+    # Constraint: avoid duplicate ingredients in same product
+    __table_args__ = (UniqueConstraint('product_id', 'ingredient_id', name='_product_ingredient_uc'),) # [cite: 381, 382]

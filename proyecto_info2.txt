@@ -1,0 +1,2967 @@
+﻿=== ARCHIVOS PROYECTO (sin venv) ===
+C:\Proyectos\VillafoodService\backend\config.py
+C:\Proyectos\VillafoodService\backend\controllers\auth_controller.py
+C:\Proyectos\VillafoodService\backend\controllers\ingredient_controller.py
+C:\Proyectos\VillafoodService\backend\controllers\producto_controller.py
+C:\Proyectos\VillafoodService\backend\database_manager\database.py
+C:\Proyectos\VillafoodService\backend\models\ingredient_model.py
+C:\Proyectos\VillafoodService\backend\models\producto_model.py
+C:\Proyectos\VillafoodService\backend\models\user_model.py
+C:\Proyectos\VillafoodService\backend\object_class\ingredient.py
+C:\Proyectos\VillafoodService\backend\object_class\orders.py
+C:\Proyectos\VillafoodService\backend\object_class\products.py
+C:\Proyectos\VillafoodService\backend\object_class\users.py
+C:\Proyectos\VillafoodService\backend\services\disponibilidad_service.py
+C:\Proyectos\VillafoodService\backend\services\ingrediente_service.py
+C:\Proyectos\VillafoodService\backend\services\producto_service.py
+C:\Proyectos\VillafoodService\frontend\ios\Flutter\ephemeral\flutter_lldb_helper.py
+C:\Proyectos\VillafoodService\main_class\main.py
+
+=== ARCHIVOS DART ===
+C:\Proyectos\VillafoodService\frontend\lib\main.dart
+C:\Proyectos\VillafoodService\frontend\lib\models\ingrediente.dart
+C:\Proyectos\VillafoodService\frontend\lib\models\producto.dart
+C:\Proyectos\VillafoodService\frontend\lib\models\producto_ingrediente.dart
+C:\Proyectos\VillafoodService\frontend\lib\models\user.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_auth\login_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_auth\register_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_home\home_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_ingredientes\ingrediente_form_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_ingredientes\ingredientes_list_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_productos\producto_form_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_productos\producto_ingredientes_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\screens_productos\productos_list_screen.dart
+C:\Proyectos\VillafoodService\frontend\lib\services\api_service.dart
+C:\Proyectos\VillafoodService\frontend\lib\services\ingrediente_service.dart
+C:\Proyectos\VillafoodService\frontend\lib\services\producto_service.dart
+
+=== CONTENIDO ARCHIVOS BACKEND ===
+
+--- C:\Proyectos\VillafoodService\backend\config.py ---
+
+--- C:\Proyectos\VillafoodService\backend\controllers\auth_controller.py ---
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from backend.database_manager.database import SessionLocal
+from backend.models.user_model import User
+from pydantic import BaseModel
+
+router = APIRouter()
+
+
+# --- ESQUEMAS (ValidaciÃ³n de datos) ---
+
+# Para el Registro (Tarea 1)
+class UserCreate(BaseModel):
+    nombre_usuario: str
+    correo: str
+    contraseÃ±a: str
+
+
+# Para el Login (NUEVO - Tarea 2)
+class UserLogin(BaseModel):
+    correo: str
+    contraseÃ±a: str
+
+
+# --- DEPENDENCIAS ---
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# --- ENDPOINTS ---
+
+# TAREA 1: REGISTRO
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # Verificar si existe
+    existe = db.query(User).filter(User.correo == user_data.correo).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="El correo ya estÃ¡ registrado")
+
+    # Crear usuario
+    new_user = User(
+        nombre_usuario=user_data.nombre_usuario,
+        correo=user_data.correo,
+        contraseÃ±a=user_data.contraseÃ±a
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {
+        "usuario_ID": new_user.usuario_ID,
+        "nombre_usuario": new_user.nombre_usuario,
+        "correo": new_user.correo
+    }
+
+
+# TAREA 2: LOGIN (NUEVO)
+@router.post("/login", status_code=status.HTTP_200_OK)
+async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    # [cite_start]1. Buscar usuario por correo [cite: 6]
+    user = db.query(User).filter(User.correo == user_data.correo).first()
+
+    # [cite_start]2. Si no existe -> Error 404 [cite: 6]
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+
+    # [cite_start]3. Comparar contraseÃ±a (texto plano por ahora) -> Error 401 [cite: 6]
+    if user.contraseÃ±a != user_data.contraseÃ±a:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="ContraseÃ±a incorrecta"
+        )
+
+    # [cite_start]4. Si va bien, devolver datos (sin contraseÃ±a) [cite: 6]
+    return {
+        "usuario_ID": user.usuario_ID,
+        "nombre_usuario": user.nombre_usuario,
+        "correo": user.correo
+    }
+
+--- C:\Proyectos\VillafoodService\backend\controllers\ingredient_controller.py ---
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List
+from backend.object_class.ingredient import IngredienteResponse, IngredienteCreate, IngredienteUpdate
+# Se asume que AdÃ¡n crearÃ¡ este archivo de servicios
+from backend.services import ingrediente_service
+from backend.database_manager.database import get_db
+
+router = APIRouter(prefix="/ingredientes", tags=["ingredientes"])
+
+@router.get("/", response_model=List[IngredienteResponse])
+def listar_ingredientes(db: Session = Depends(get_db)):
+    return ingrediente_service.get_ingredientes(db)
+
+@router.get("/{id}", response_model=IngredienteResponse)
+def obtener_ingrediente(id: int, db: Session = Depends(get_db)):
+    res = ingrediente_service.get_ingrediente(db, id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+    return res
+
+@router.post("/", response_model=IngredienteResponse, status_code=201)
+def crear_ingrediente(ingrediente_in: IngredienteCreate, db: Session = Depends(get_db)):
+    return ingrediente_service.create_ingrediente(db, ingrediente_in)
+
+@router.put("/{id}", response_model=IngredienteResponse)
+def actualizar_ingrediente(id: int, ingrediente_in: IngredienteUpdate, db: Session = Depends(get_db)):
+    res = ingrediente_service.update_ingrediente(db, id, ingrediente_in)
+    if not res:
+        raise HTTPException(status_code=404, detail="No existe el ingrediente")
+    return res
+
+@router.delete("/{id}", status_code=204)
+def eliminar_ingrediente(id: int, db: Session = Depends(get_db)):
+    if not ingrediente_service.delete_ingrediente(db, id):
+        raise HTTPException(status_code=404, detail="No encontrado")
+    return None
+
+--- C:\Proyectos\VillafoodService\backend\controllers\producto_controller.py ---
+"""
+Controller de Productos
+Endpoints REST para la gestiÃ³n de productos y su disponibilidad
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from decimal import Decimal
+
+# Imports de schemas
+from backend.object_class.products import (
+    ProductoCreate, 
+    ProductoUpdate, 
+    ProductoResponse,
+    ProductoDetalleResponse,
+    ProductoIngredienteBase,
+    DisponibilidadDetalleResponse
+)
+
+# Imports de servicios
+from backend.services import producto_service, disponibilidad_service
+
+# Import de dependencia de BD
+from backend.database_manager.database import get_db
+
+# Router
+router = APIRouter(prefix="/productos", tags=["productos"])
+
+
+# ============================================================================
+# ENDPOINTS DE LISTADO Y CONSULTA
+# ============================================================================
+
+@router.get("/", response_model=List[ProductoResponse])
+def listar_productos(
+    skip: int = Query(0, ge=0, description="NÃºmero de registros a saltar"),
+    limit: int = Query(100, ge=1, le=100, description="LÃ­mite de registros"),
+    categoria: Optional[str] = Query(None, description="Filtrar por categorÃ­a"),
+    db: Session = Depends(get_db)
+):
+    """
+    Lista todos los productos activos con su disponibilidad.
+    
+    Query params:
+    - skip: paginaciÃ³n (default 0)
+    - limit: lÃ­mite de resultados (default 100, max 100)
+    - categoria: filtrar por categorÃ­a (CafeterÃ­a/Restaurante/ReposterÃ­a)
+    """
+    return producto_service.get_productos(db, skip, limit, categoria)
+
+
+@router.get("/disponibles", response_model=List[ProductoResponse])
+def listar_productos_disponibles(
+    categoria: Optional[str] = Query(None, description="Filtrar por categorÃ­a"),
+    db: Session = Depends(get_db)
+):
+    """
+    Lista solo productos que tienen stock disponible (unidades_disponibles > 0).
+    
+    Query params:
+    - categoria: filtrar por categorÃ­a (opcional)
+    """
+    return disponibilidad_service.get_productos_disponibles(db, categoria)
+
+
+@router.get("/{producto_id}", response_model=ProductoDetalleResponse)
+def obtener_producto(
+    producto_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene el detalle completo de un producto con informaciÃ³n de ingredientes.
+    
+    Incluye:
+    - Datos del producto
+    - Lista de ingredientes con cantidades
+    - Disponibilidad calculada
+    - Ingrediente limitante
+    """
+    producto = producto_service.get_producto_con_ingredientes(db, producto_id)
+    
+    if not producto:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado"
+        )
+    
+    return producto
+
+
+@router.get("/{producto_id}/disponibilidad", response_model=DisponibilidadDetalleResponse)
+def obtener_disponibilidad_detallada(
+    producto_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene anÃ¡lisis detallado de disponibilidad de un producto.
+    
+    Muestra:
+    - Unidades disponibles totales
+    - AnÃ¡lisis por ingrediente (stock, unidades posibles)
+    - CuÃ¡l ingrediente es el limitante
+    """
+    detalle = disponibilidad_service.get_detalle_disponibilidad(db, producto_id)
+    
+    if not detalle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado"
+        )
+    
+    return detalle
+
+
+# ============================================================================
+# ENDPOINTS DE CREACIÃ“N Y MODIFICACIÃ“N
+# ============================================================================
+
+@router.post("/", response_model=ProductoResponse, status_code=status.HTTP_201_CREATED)
+def crear_producto(
+    producto_in: ProductoCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Crea un nuevo producto.
+    
+    Validaciones:
+    - Nombre Ãºnico (no puede existir otro con el mismo nombre)
+    - Precio > 0
+    - CategorÃ­a vÃ¡lida (CafeterÃ­a/Restaurante/ReposterÃ­a)
+    
+    Nota: El producto se crea sin ingredientes. Usar endpoints de ingredientes para aÃ±adirlos.
+    """
+    producto_data = producto_in.dict()
+    return producto_service.create_producto(db, producto_data)
+
+
+@router.put("/{producto_id}", response_model=ProductoResponse)
+def actualizar_producto(
+    producto_id: int,
+    producto_in: ProductoUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Actualiza un producto existente.
+    
+    Solo se actualizan los campos proporcionados (todos son opcionales).
+    
+    Validaciones:
+    - Si se cambia nombre, debe ser Ãºnico
+    - Si se cambia precio, debe ser > 0
+    - Si se cambia categorÃ­a, debe ser vÃ¡lida
+    """
+    # Convertir a dict y eliminar valores None
+    producto_data = {k: v for k, v in producto_in.dict().items() if v is not None}
+    
+    if not producto_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se proporcionaron campos para actualizar"
+        )
+    
+    resultado = producto_service.update_producto(db, producto_id, producto_data)
+    
+    if not resultado:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado"
+        )
+    
+    return resultado
+
+
+@router.delete("/{producto_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_producto(
+    producto_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Elimina un producto (soft delete).
+    
+    Validaciones:
+    - No se puede eliminar si tiene pedidos activos
+    
+    Nota: No elimina fÃ­sicamente, solo marca como inactivo (producto_activo = False)
+    """
+    eliminado = producto_service.delete_producto(db, producto_id)
+    
+    if not eliminado:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado"
+        )
+    
+    return None
+
+
+# ============================================================================
+# ENDPOINTS DE GESTIÃ“N DE INGREDIENTES
+# ============================================================================
+
+@router.post("/{producto_id}/ingredientes", status_code=status.HTTP_201_CREATED)
+def aÃ±adir_ingrediente_a_producto(
+    producto_id: int,
+    ingrediente_in: ProductoIngredienteBase,
+    db: Session = Depends(get_db)
+):
+    """
+    AÃ±ade un ingrediente a un producto con su cantidad necesaria.
+    
+    Validaciones:
+    - Producto debe existir y estar activo
+    - Ingrediente debe existir y estar activo
+    - Cantidad debe ser > 0
+    - No puede aÃ±adir el mismo ingrediente dos veces
+    
+    Body:
+    {
+        "ingrediente_id": 1,
+        "cantidad_necesaria": 0.2
+    }
+    """
+    return producto_service.add_ingrediente_to_producto(
+        db,
+        producto_id,
+        ingrediente_in.ingrediente_id,
+        ingrediente_in.cantidad_necesaria
+    )
+
+
+@router.put("/{producto_id}/ingredientes/{ingrediente_id}")
+def actualizar_cantidad_ingrediente(
+    producto_id: int,
+    ingrediente_id: int,
+    cantidad: Decimal,
+    db: Session = Depends(get_db)
+):
+    """
+    Actualiza la cantidad necesaria de un ingrediente en un producto.
+    
+    Validaciones:
+    - La relaciÃ³n producto-ingrediente debe existir
+    - Cantidad debe ser > 0
+    
+    Body:
+    {
+        "cantidad": 0.5
+    }
+    """
+    if cantidad <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La cantidad debe ser mayor a 0"
+        )
+    
+    resultado = producto_service.update_cantidad_ingrediente(
+        db,
+        producto_id,
+        ingrediente_id,
+        cantidad
+    )
+    
+    if not resultado:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RelaciÃ³n producto-ingrediente no encontrada"
+        )
+    
+    return resultado
+
+
+@router.delete("/{producto_id}/ingredientes/{ingrediente_id}", status_code=status.HTTP_204_NO_CONTENT)
+def quitar_ingrediente_de_producto(
+    producto_id: int,
+    ingrediente_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Elimina un ingrediente de un producto.
+    
+    Validaciones:
+    - La relaciÃ³n debe existir
+    - Un producto debe tener al menos 1 ingrediente (no se puede eliminar el Ãºltimo)
+    """
+    eliminado = producto_service.remove_ingrediente_from_producto(
+        db,
+        producto_id,
+        ingrediente_id
+    )
+    
+    if not eliminado:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RelaciÃ³n producto-ingrediente no encontrada"
+        )
+    
+    return None
+
+--- C:\Proyectos\VillafoodService\backend\database_manager\database.py ---
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# Definimos el nombre y lugar del archivo de base de datos
+SQLALCHEMY_DATABASE_URL = "sqlite:///./backend/villafood.db"
+
+# Creamos el motor de la base de datos
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+
+# Creamos la herramienta para abrir y cerrar sesiones
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base para crear modelos
+Base = declarative_base()
+
+# FunciÃ³n para crear las tablas si no existen
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
+# FunciÃ³n para obtener sesiÃ³n de BD (dependency de FastAPI)
+def get_db():
+    """
+    Dependency que proporciona una sesiÃ³n de base de datos.
+    Se cierra automÃ¡ticamente al terminar la request.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+--- C:\Proyectos\VillafoodService\backend\models\ingredient_model.py ---
+from sqlalchemy import Column, Integer, String, Boolean, Numeric
+from sqlalchemy.orm import relationship
+from backend.database_manager.database import Base
+
+class Ingrediente(Base):
+    __tablename__ = "ingredientes"
+
+    ingrediente_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    ingrediente_nombre = Column(String(100), unique=True, nullable=False)
+    ingrediente_stockActual = Column(Numeric(10, 2), nullable=False)
+    ingrediente_stockMinimo = Column(Numeric(10, 2), nullable=False)
+    ingrediente_unidadMedida = Column(String(20), nullable=False)
+    ingrediente_precioUnitario = Column(Numeric(10, 2), nullable=False)
+    ingrediente_activo = Column(Boolean, default=True)
+
+    #relacion para verificar uso antes de eliminar (lo usarÃ¡ AdÃ¡n)
+    productos_vinculados = relationship("ProductoIngrediente", back_populates="ingrediente")
+
+--- C:\Proyectos\VillafoodService\backend\models\producto_model.py ---
+"""
+Modelos de base de datos para Productos
+Define las tablas: Productos y ProductosIngredientes (relaciÃ³n muchos-a-muchos)
+"""
+from sqlalchemy import Column, Integer, String, Boolean, Numeric, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from backend.database_manager.database import Base
+
+
+class Producto(Base):
+    """Modelo para la tabla productos"""
+    __tablename__ = "productos"
+
+    # Campos de la tabla
+    producto_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    producto_nombre = Column(String(100), unique=True, nullable=False)
+    producto_descripcion = Column(Text, nullable=True)
+    producto_precioUnitario = Column(Numeric(10, 2), nullable=False)
+    producto_categoria = Column(String(50), nullable=False)  # CafeterÃ­a, Restaurante, ReposterÃ­a
+    producto_activo = Column(Boolean, default=True)
+
+    # Relaciones
+    # RelaciÃ³n con ProductosIngredientes (un producto tiene mÃºltiples ingredientes)
+    productos_ingredientes = relationship(
+        "ProductoIngrediente", 
+        back_populates="producto",
+        cascade="all, delete-orphan"  # Si se elimina producto, se eliminan sus ingredientes
+    )
+
+
+class ProductoIngrediente(Base):
+    """
+    Modelo para la tabla intermedia productos_ingredientes
+    RelaciÃ³n muchos-a-muchos entre Productos e Ingredientes
+    """
+    __tablename__ = "productos_ingredientes"
+
+    # Campos de la tabla
+    productoIngrediente_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    productoIngrediente_productoId = Column(Integer, ForeignKey("productos.producto_id"), nullable=False)
+    productoIngrediente_ingredienteId = Column(Integer, ForeignKey("ingredientes.ingrediente_id"), nullable=False)
+    productoIngrediente_cantidad = Column(Numeric(10, 2), nullable=False)  # Cantidad necesaria del ingrediente
+
+    # Relaciones
+    # RelaciÃ³n con Producto
+    producto = relationship("Producto", back_populates="productos_ingredientes")
+    
+    # RelaciÃ³n con Ingrediente
+    ingrediente = relationship("Ingrediente", back_populates="productos_vinculados")
+
+    # IMPORTANTE: Constraint Ãºnico para evitar duplicados
+    # No se puede aÃ±adir el mismo ingrediente dos veces al mismo producto
+    __table_args__ = (
+        {'sqlite_autoincrement': True},
+    )
+    # Nota: En producciÃ³n con PostgreSQL, aÃ±adir UniqueConstraint:
+    # from sqlalchemy import UniqueConstraint
+    # __table_args__ = (UniqueConstraint('productoIngrediente_productoId', 'productoIngrediente_ingredienteId', name='uix_producto_ingrediente'),)
+
+--- C:\Proyectos\VillafoodService\backend\models\user_model.py ---
+from sqlalchemy import Column, Integer, String
+# Importamos la configuraciÃ³n del archivo anterior
+from backend.database_manager.database import Base
+
+class User(Base):
+    # Nombre de la tabla en la base de datos
+    __tablename__ = "usuarios"
+
+    # Columnas exactas que pide el PDF
+    usuario_ID = Column(Integer, primary_key=True, autoincrement=True)
+    nombre_usuario = Column(String, nullable=False)
+    correo = Column(String, unique=True, nullable=False)
+    contraseÃ±a = Column(String, nullable=False)
+
+--- C:\Proyectos\VillafoodService\backend\object_class\ingredient.py ---
+from pydantic import BaseModel, Field, validator
+from typing import Optional
+from decimal import Decimal
+
+class IngredienteBase(BaseModel):
+    ingrediente_nombre: str = Field(..., max_length=100)
+    ingrediente_stockActual: Decimal
+    ingrediente_stockMinimo: Decimal
+    ingrediente_unidadMedida: str
+    ingrediente_precioUnitario: Decimal
+
+    @validator('ingrediente_unidadMedida')
+    def validar_unidad(cls, v):
+        unidades_validas = ['kg', 'g', 'L', 'ml', 'unidades']
+        if v not in unidades_validas:
+            raise ValueError(f"Unidad debe ser una de: {unidades_validas}")
+        return v
+
+class IngredienteCreate(IngredienteBase):
+    pass  # Todos los campos de Base son obligatorios aquÃ­
+
+class IngredienteUpdate(BaseModel):
+    ingrediente_nombre: Optional[str] = None
+    ingrediente_stockActual: Optional[Decimal] = None
+    ingrediente_stockMinimo: Optional[Decimal] = None
+    ingrediente_unidadMedida: Optional[str] = None
+    ingrediente_precioUnitario: Optional[Decimal] = None
+
+class IngredienteResponse(IngredienteBase):
+    ingrediente_id: int
+    ingrediente_activo: bool
+    estado_stock: str  # Campo calculado ("crÃ­tico"/"bajo"/"normal")
+
+    class Config:
+        from_attributes = True
+
+--- C:\Proyectos\VillafoodService\backend\object_class\orders.py ---
+    
+
+--- C:\Proyectos\VillafoodService\backend\object_class\products.py ---
+"""
+Schemas Pydantic para Productos
+"""
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List
+from decimal import Decimal
+
+class ProductoBase(BaseModel):
+    producto_nombre: str = Field(..., max_length=100)
+    producto_descripcion: Optional[str] = None
+    producto_precioUnitario: Decimal = Field(..., gt=0)
+    producto_categoria: str = Field(..., max_length=50)
+
+    @validator('producto_categoria')
+    def validar_categoria(cls, v):
+        categorias_validas = ['CafeterÃ­a', 'Restaurante', 'ReposterÃ­a']
+        if v not in categorias_validas:
+            raise ValueError(f"CategorÃ­a debe ser una de: {categorias_validas}")
+        return v
+
+class ProductoCreate(ProductoBase):
+    pass
+
+class ProductoUpdate(BaseModel):
+    producto_nombre: Optional[str] = Field(None, max_length=100)
+    producto_descripcion: Optional[str] = None
+    producto_precioUnitario: Optional[Decimal] = Field(None, gt=0)
+    producto_categoria: Optional[str] = Field(None, max_length=50)
+
+    @validator('producto_categoria')
+    def validar_categoria(cls, v):
+        if v is not None:
+            categorias_validas = ['CafeterÃ­a', 'Restaurante', 'ReposterÃ­a']
+            if v not in categorias_validas:
+                raise ValueError(f"CategorÃ­a debe ser una de: {categorias_validas}")
+        return v
+
+class ProductoResponse(ProductoBase):
+    producto_id: int
+    producto_activo: bool
+    unidades_disponibles: int
+    disponible: bool
+
+    class Config:
+        from_attributes = True
+
+class ProductoIngredienteBase(BaseModel):
+    ingrediente_id: int = Field(..., gt=0)
+    cantidad_necesaria: Decimal = Field(..., gt=0)
+
+class IngredienteDetalleEnProducto(BaseModel):
+    ingrediente_id: int
+    ingrediente_nombre: str
+    cantidad_necesaria: Decimal
+    unidad_medida: Optional[str] = None  # âœ… opcional â€” evita el error 500
+    stock_disponible: Decimal
+    unidades_posibles: int
+    es_limitante: bool
+
+class ProductoDetalleResponse(ProductoResponse):
+    ingredientes: List[IngredienteDetalleEnProducto]
+    ingrediente_limitante: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class DisponibilidadDetalleResponse(BaseModel):
+    producto_id: int
+    producto_nombre: str
+    unidades_disponibles: int
+    disponible: bool
+    ingredientes_detalle: List[IngredienteDetalleEnProducto]
+    ingrediente_limitante: Optional[str] = None
+
+--- C:\Proyectos\VillafoodService\backend\object_class\users.py ---
+class User:
+    def __init__(self,username:str,password:str,mail:str):
+        self.username = username
+        self.password = password
+        self.mail=mail
+
+--- C:\Proyectos\VillafoodService\backend\services\disponibilidad_service.py ---
+"""
+Servicio de Disponibilidad de Productos
+ARCHIVO MÃS CRÃTICO: Calcula disponibilidad en tiempo real basado en stock de ingredientes
+"""
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from typing import List, Optional
+from decimal import Decimal
+import math
+
+# Imports de modelos
+from backend.models.producto_model import Producto, ProductoIngrediente
+from backend.models.ingredient_model import Ingrediente
+
+
+# ============================================================================
+# FUNCIÃ“N 1: Calcular unidades disponibles â­ LA MÃS IMPORTANTE
+# ============================================================================
+def calcular_unidades_disponibles(db: Session, producto_id: int) -> int:
+    """
+    Calcula cuÃ¡ntas unidades de un producto se pueden hacer con el stock actual.
+    
+    LÃ“GICA:
+    1. Para cada ingrediente del producto, calcular: unidades_posibles = stock_actual / cantidad_necesaria
+    2. El mÃ­nimo de todas las unidades_posibles es lo que se puede hacer
+    3. Si algÃºn ingrediente tiene stock = 0 â†’ retorna 0
+    4. Si el producto no tiene ingredientes â†’ retorna 0
+    
+    Ejemplo:
+        Pizza Margarita necesita:
+        - 0.2 kg queso, stock: 1.0 kg â†’ 1.0 / 0.2 = 5 unidades
+        - 0.15 kg tomate, stock: 0.45 kg â†’ 0.45 / 0.15 = 3 unidades
+        - 0.3 kg masa, stock: 2.0 kg â†’ 2.0 / 0.3 = 6 unidades
+        Resultado: min(5, 3, 6) = 3 pizzas disponibles
+    """
+    
+    # Obtener todas las relaciones producto-ingrediente
+    relaciones = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_productoId == producto_id
+    ).all()
+    
+    # Si el producto no tiene ingredientes â†’ 0 disponibles
+    if not relaciones:
+        return 0
+    
+    # Lista para guardar las unidades posibles con cada ingrediente
+    unidades_posibles_list = []
+    
+    for relacion in relaciones:
+        # Obtener el ingrediente
+        ingrediente = db.query(Ingrediente).filter(
+            Ingrediente.ingrediente_id == relacion.productoIngrediente_ingredienteId
+        ).first()
+        
+        # Si el ingrediente no existe o estÃ¡ inactivo â†’ 0 disponibles
+        if not ingrediente or not ingrediente.ingrediente_activo:
+            return 0
+        
+        # Obtener stock actual y cantidad necesaria
+        stock_actual = float(ingrediente.ingrediente_stockActual)
+        cantidad_necesaria = float(relacion.productoIngrediente_cantidad)
+        
+        # EDGE CASE: Si stock es 0 â†’ no se puede hacer ninguna unidad
+        if stock_actual == 0:
+            return 0
+        
+        # EDGE CASE: Si cantidad necesaria es 0 â†’ error de datos
+        if cantidad_necesaria == 0:
+            raise ValueError(f"Cantidad necesaria no puede ser 0 para ingrediente {ingrediente.ingrediente_id}")
+        
+        # Calcular cuÃ¡ntas unidades se pueden hacer con este ingrediente
+        unidades_con_este_ingrediente = stock_actual / cantidad_necesaria
+        
+        # Redondear hacia abajo (floor)
+        unidades_con_este_ingrediente = math.floor(unidades_con_este_ingrediente)
+        
+        unidades_posibles_list.append(unidades_con_este_ingrediente)
+    
+    # El mÃ­nimo es lo que realmente se puede hacer
+    # (el ingrediente que se acabe primero limita la producciÃ³n)
+    unidades_disponibles = min(unidades_posibles_list)
+    
+    return unidades_disponibles
+
+
+# ============================================================================
+# FUNCIÃ“N 2: Obtener solo productos disponibles
+# ============================================================================
+def get_productos_disponibles(db: Session, categoria: Optional[str] = None) -> List[dict]:
+    """
+    Obtiene solo productos que tienen unidades_disponibles > 0
+    Opcionalmente filtra por categorÃ­a
+    """
+    
+    # Obtener todos los productos activos
+    query = db.query(Producto).filter(Producto.producto_activo == True)
+    
+    # Filtrar por categorÃ­a si se especifica
+    if categoria:
+        query = query.filter(Producto.producto_categoria == categoria)
+    
+    productos = query.all()
+    
+    # Filtrar solo los que tienen stock disponible
+    productos_disponibles = []
+    
+    for producto in productos:
+        unidades = calcular_unidades_disponibles(db, producto.producto_id)
+        
+        if unidades > 0:
+            producto_dict = {
+                "producto_id": producto.producto_id,
+                "producto_nombre": producto.producto_nombre,
+                "producto_descripcion": producto.producto_descripcion,
+                "producto_precioUnitario": producto.producto_precioUnitario,
+                "producto_categoria": producto.producto_categoria,
+                "producto_activo": producto.producto_activo,
+                "unidades_disponibles": unidades,
+                "disponible": True
+            }
+            productos_disponibles.append(producto_dict)
+    
+    return productos_disponibles
+
+
+# ============================================================================
+# FUNCIÃ“N 3: Detalle de disponibilidad con anÃ¡lisis por ingrediente
+# ============================================================================
+def get_detalle_disponibilidad(db: Session, producto_id: int) -> dict:
+    """
+    Retorna informaciÃ³n detallada sobre la disponibilidad de un producto.
+    Incluye anÃ¡lisis por ingrediente y cuÃ¡l es el limitante.
+    """
+    
+    # Obtener producto
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+    
+    if not producto:
+        return None
+    
+    # Obtener relaciones producto-ingrediente
+    relaciones = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_productoId == producto_id
+    ).all()
+    
+    if not relaciones:
+        return {
+            "producto_id": producto.producto_id,
+            "producto_nombre": producto.producto_nombre,
+            "unidades_disponibles": 0,
+            "disponible": False,
+            "ingredientes_detalle": [],
+            "ingrediente_limitante": None
+        }
+    
+    # Calcular disponibilidad global
+    unidades_totales = calcular_unidades_disponibles(db, producto_id)
+    
+    # Analizar cada ingrediente
+    ingredientes_detalle = []
+    ingrediente_limitante_nombre = None
+    min_unidades = float('inf')
+    
+    for relacion in relaciones:
+        ingrediente = db.query(Ingrediente).filter(
+            Ingrediente.ingrediente_id == relacion.productoIngrediente_ingredienteId
+        ).first()
+        
+        if not ingrediente:
+            continue
+        
+        stock_actual = float(ingrediente.ingrediente_stockActual)
+        cantidad_necesaria = float(relacion.productoIngrediente_cantidad)
+        
+        # Calcular unidades posibles con este ingrediente
+        if cantidad_necesaria > 0:
+            unidades_posibles = math.floor(stock_actual / cantidad_necesaria)
+        else:
+            unidades_posibles = 0
+        
+        # Determinar si es el limitante
+        es_limitante = (unidades_posibles == unidades_totales) and (unidades_totales > 0)
+        
+        if unidades_posibles < min_unidades:
+            min_unidades = unidades_posibles
+            ingrediente_limitante_nombre = ingrediente.ingrediente_nombre
+        
+        ingrediente_detalle = {
+            "ingrediente_id": ingrediente.ingrediente_id,
+            "ingrediente_nombre": ingrediente.ingrediente_nombre,
+            "cantidad_necesaria": cantidad_necesaria,
+            "stock_disponible": stock_actual,
+            "unidades_posibles": unidades_posibles,
+            "es_limitante": es_limitante
+        }
+        ingredientes_detalle.append(ingrediente_detalle)
+    
+    return {
+        "producto_id": producto.producto_id,
+        "producto_nombre": producto.producto_nombre,
+        "unidades_disponibles": unidades_totales,
+        "disponible": unidades_totales > 0,
+        "ingredientes_detalle": ingredientes_detalle,
+        "ingrediente_limitante": ingrediente_limitante_nombre
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 4: Verificar disponibilidad para un pedido
+# ============================================================================
+def verificar_disponibilidad_para_pedido(db: Session, producto_id: int, cantidad_solicitada: int) -> bool:
+    """
+    Verifica si hay suficiente stock para hacer un pedido.
+    NO modifica el stock, solo verifica.
+    
+    Args:
+        producto_id: ID del producto
+        cantidad_solicitada: Cantidad que el cliente quiere pedir
+    
+    Returns:
+        True si hay suficiente stock, False si no
+    """
+    
+    unidades_disponibles = calcular_unidades_disponibles(db, producto_id)
+    
+    return cantidad_solicitada <= unidades_disponibles
+
+
+# ============================================================================
+# FUNCIÃ“N 5: Actualizar stock despuÃ©s de confirmar pedido (OPCIONAL)
+# ============================================================================
+def actualizar_stock_post_pedido(db: Session, pedido_id: int) -> None:
+    """
+    FUNCIÃ“N FUTURA: Resta el stock de ingredientes cuando se confirma un pedido.
+    
+    IMPORTANTE: Esta funciÃ³n serÃ¡ Ãºtil en la Tarea de Pedidos.
+    Por ahora estÃ¡ preparada pero no se usa.
+    
+    LÃ³gica:
+    1. Obtener todos los productos del pedido
+    2. Para cada producto:
+       - Para cada ingrediente del producto:
+         - Calcular: stock_a_restar = cantidad_pedida * cantidad_necesaria_ingrediente
+         - Actualizar: ingrediente.stock_actual -= stock_a_restar
+    3. Verificar que ningÃºn stock quede negativo
+    """
+    # TODO: Implementar cuando se tenga la tabla de Pedidos
+    pass
+
+
+# ============================================================================
+# FUNCIÃ“N 6: Productos con stock crÃ­tico (OPCIONAL - Ãºtil para alertas)
+# ============================================================================
+def get_productos_stock_critico(db: Session) -> List[dict]:
+    """
+    Retorna productos que tienen unidades_disponibles == 0 o muy pocas.
+    Ãštil para dashboard de alertas.
+    """
+    
+    productos = db.query(Producto).filter(Producto.producto_activo == True).all()
+    
+    productos_criticos = []
+    
+    for producto in productos:
+        unidades = calcular_unidades_disponibles(db, producto.producto_id)
+        
+        # Considerar crÃ­tico si tiene 0 unidades o menos de 5
+        if unidades <= 5:
+            detalle = get_detalle_disponibilidad(db, producto.producto_id)
+            productos_criticos.append(detalle)
+    
+    return productos_criticos
+
+--- C:\Proyectos\VillafoodService\backend\services\ingrediente_service.py ---
+"""
+Servicio para Ingredientes
+LÃ³gica de negocio para la gestiÃ³n de ingredientes
+"""
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from typing import List, Optional
+from decimal import Decimal
+
+from backend.models.ingredient_model import Ingrediente
+from backend.models.producto_model import ProductoIngrediente
+
+
+def calcular_estado_stock(stock_actual: Decimal, stock_minimo: Decimal) -> str:
+    if stock_actual == 0:
+        return "crÃ­tico"
+    elif stock_actual < stock_minimo:
+        return "bajo"
+    else:
+        return "normal"
+
+
+def get_ingredientes(db: Session, skip: int = 0, limit: int = 100) -> List[dict]:
+    ingredientes = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_activo == True
+    ).offset(skip).limit(limit).all()
+
+    resultado = []
+    for ing in ingredientes:
+        estado = calcular_estado_stock(ing.ingrediente_stockActual, ing.ingrediente_stockMinimo)
+        ingrediente_dict = {
+            "ingrediente_id": ing.ingrediente_id,
+            "ingrediente_nombre": ing.ingrediente_nombre,
+            "ingrediente_stockActual": ing.ingrediente_stockActual,
+            "ingrediente_stockMinimo": ing.ingrediente_stockMinimo,
+            "ingrediente_unidadMedida": ing.ingrediente_unidadMedida,
+            "ingrediente_precioUnitario": ing.ingrediente_precioUnitario,
+            "ingrediente_activo": ing.ingrediente_activo,
+            "estado_stock": estado
+        }
+        resultado.append(ingrediente_dict)
+
+    return resultado
+
+
+def get_ingrediente(db: Session, ingrediente_id: int) -> Optional[dict]:
+    ingrediente = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_id == ingrediente_id,
+        Ingrediente.ingrediente_activo == True
+    ).first()
+
+    if not ingrediente:
+        return None
+
+    estado = calcular_estado_stock(ingrediente.ingrediente_stockActual, ingrediente.ingrediente_stockMinimo)
+
+    return {
+        "ingrediente_id": ingrediente.ingrediente_id,
+        "ingrediente_nombre": ingrediente.ingrediente_nombre,
+        "ingrediente_stockActual": ingrediente.ingrediente_stockActual,
+        "ingrediente_stockMinimo": ingrediente.ingrediente_stockMinimo,
+        "ingrediente_unidadMedida": ingrediente.ingrediente_unidadMedida,
+        "ingrediente_precioUnitario": ingrediente.ingrediente_precioUnitario,
+        "ingrediente_activo": ingrediente.ingrediente_activo,
+        "estado_stock": estado
+    }
+
+
+def create_ingrediente(db: Session, ingrediente_data) -> dict:
+    # âœ… convierte Pydantic a dict si es necesario
+    if hasattr(ingrediente_data, 'model_dump'):
+        ingrediente_data = ingrediente_data.model_dump()
+
+    existe = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_nombre == ingrediente_data["ingrediente_nombre"]
+    ).first()
+
+    if existe:
+        raise HTTPException(status_code=400, detail="Ya existe un ingrediente con ese nombre")
+
+    nuevo_ingrediente = Ingrediente(**ingrediente_data)
+    db.add(nuevo_ingrediente)
+    db.commit()
+    db.refresh(nuevo_ingrediente)
+
+    estado = calcular_estado_stock(nuevo_ingrediente.ingrediente_stockActual, nuevo_ingrediente.ingrediente_stockMinimo)
+
+    return {
+        "ingrediente_id": nuevo_ingrediente.ingrediente_id,
+        "ingrediente_nombre": nuevo_ingrediente.ingrediente_nombre,
+        "ingrediente_stockActual": nuevo_ingrediente.ingrediente_stockActual,
+        "ingrediente_stockMinimo": nuevo_ingrediente.ingrediente_stockMinimo,
+        "ingrediente_unidadMedida": nuevo_ingrediente.ingrediente_unidadMedida,
+        "ingrediente_precioUnitario": nuevo_ingrediente.ingrediente_precioUnitario,
+        "ingrediente_activo": nuevo_ingrediente.ingrediente_activo,
+        "estado_stock": estado
+    }
+
+
+def update_ingrediente(db: Session, ingrediente_id: int, ingrediente_data) -> Optional[dict]:
+    # âœ… convierte Pydantic a dict si es necesario
+    if hasattr(ingrediente_data, 'model_dump'):
+        ingrediente_data = ingrediente_data.model_dump(exclude_unset=True)
+
+    ingrediente = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_id == ingrediente_id,
+        Ingrediente.ingrediente_activo == True
+    ).first()
+
+    if not ingrediente:
+        return None
+
+    if "ingrediente_nombre" in ingrediente_data:
+        existe_otro = db.query(Ingrediente).filter(
+            Ingrediente.ingrediente_nombre == ingrediente_data["ingrediente_nombre"],
+            Ingrediente.ingrediente_id != ingrediente_id
+        ).first()
+
+        if existe_otro:
+            raise HTTPException(status_code=400, detail="Ya existe un ingrediente con ese nombre")
+
+    for key, value in ingrediente_data.items():
+        setattr(ingrediente, key, value)
+
+    db.commit()
+    db.refresh(ingrediente)
+
+    estado = calcular_estado_stock(ingrediente.ingrediente_stockActual, ingrediente.ingrediente_stockMinimo)
+
+    return {
+        "ingrediente_id": ingrediente.ingrediente_id,
+        "ingrediente_nombre": ingrediente.ingrediente_nombre,
+        "ingrediente_stockActual": ingrediente.ingrediente_stockActual,
+        "ingrediente_stockMinimo": ingrediente.ingrediente_stockMinimo,
+        "ingrediente_unidadMedida": ingrediente.ingrediente_unidadMedida,
+        "ingrediente_precioUnitario": ingrediente.ingrediente_precioUnitario,
+        "ingrediente_activo": ingrediente.ingrediente_activo,
+        "estado_stock": estado
+    }
+
+
+def delete_ingrediente(db: Session, ingrediente_id: int) -> bool:
+    ingrediente = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_id == ingrediente_id,
+        Ingrediente.ingrediente_activo == True
+    ).first()
+
+    if not ingrediente:
+        return False
+
+    en_uso = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_ingredienteId == ingrediente_id
+    ).first()
+
+    if en_uso:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede eliminar: el ingrediente estÃ¡ siendo usado en productos"
+        )
+
+    ingrediente.ingrediente_activo = False
+    db.commit()
+
+    return True
+
+
+def verificar_stock_bajo(db: Session) -> List[dict]:
+    ingredientes = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_activo == True,
+        Ingrediente.ingrediente_stockActual < Ingrediente.ingrediente_stockMinimo
+    ).all()
+
+    resultado = []
+    for ing in ingredientes:
+        estado = calcular_estado_stock(ing.ingrediente_stockActual, ing.ingrediente_stockMinimo)
+        ingrediente_dict = {
+            "ingrediente_id": ing.ingrediente_id,
+            "ingrediente_nombre": ing.ingrediente_nombre,
+            "ingrediente_stockActual": ing.ingrediente_stockActual,
+            "ingrediente_stockMinimo": ing.ingrediente_stockMinimo,
+            "ingrediente_unidadMedida": ing.ingrediente_unidadMedida,
+            "ingrediente_precioUnitario": ing.ingrediente_precioUnitario,
+            "ingrediente_activo": ing.ingrediente_activo,
+            "estado_stock": estado
+        }
+        resultado.append(ingrediente_dict)
+
+    return resultado
+
+--- C:\Proyectos\VillafoodService\backend\services\producto_service.py ---
+"""
+Servicio de Productos
+LÃ³gica de negocio para CRUD de productos y gestiÃ³n de ingredientes
+"""
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from typing import List, Optional
+from decimal import Decimal
+
+# Imports de modelos
+from backend.models.producto_model import Producto, ProductoIngrediente
+from backend.models.ingredient_model import Ingrediente
+
+# Import del servicio de disponibilidad
+from backend.services import disponibilidad_service
+
+
+# ============================================================================
+# FUNCIÃ“N 1: Listar productos con disponibilidad
+# ============================================================================
+def get_productos(db: Session, skip: int = 0, limit: int = 100, categoria: Optional[str] = None) -> List[dict]:
+    """
+    Obtiene lista de productos activos con su disponibilidad calculada.
+    Opcionalmente filtra por categorÃ­a.
+    """
+    
+    # Query base: productos activos
+    query = db.query(Producto).filter(Producto.producto_activo == True)
+    
+    # Filtrar por categorÃ­a si se especifica
+    if categoria:
+        query = query.filter(Producto.producto_categoria == categoria)
+    
+    # Aplicar paginaciÃ³n
+    productos = query.offset(skip).limit(limit).all()
+    
+    # Para cada producto, calcular disponibilidad
+    resultado = []
+    for producto in productos:
+        unidades = disponibilidad_service.calcular_unidades_disponibles(db, producto.producto_id)
+        
+        producto_dict = {
+            "producto_id": producto.producto_id,
+            "producto_nombre": producto.producto_nombre,
+            "producto_descripcion": producto.producto_descripcion,
+            "producto_precioUnitario": producto.producto_precioUnitario,
+            "producto_categoria": producto.producto_categoria,
+            "producto_activo": producto.producto_activo,
+            "unidades_disponibles": unidades,
+            "disponible": unidades > 0
+        }
+        resultado.append(producto_dict)
+    
+    return resultado
+
+
+# ============================================================================
+# FUNCIÃ“N 2: Obtener un producto por ID
+# ============================================================================
+def get_producto(db: Session, producto_id: int) -> Optional[dict]:
+    """Obtiene un producto especÃ­fico por ID con disponibilidad"""
+    
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+    
+    if not producto:
+        return None
+    
+    # Calcular disponibilidad
+    unidades = disponibilidad_service.calcular_unidades_disponibles(db, producto_id)
+    
+    return {
+        "producto_id": producto.producto_id,
+        "producto_nombre": producto.producto_nombre,
+        "producto_descripcion": producto.producto_descripcion,
+        "producto_precioUnitario": producto.producto_precioUnitario,
+        "producto_categoria": producto.producto_categoria,
+        "producto_activo": producto.producto_activo,
+        "unidades_disponibles": unidades,
+        "disponible": unidades > 0
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 3: Obtener producto con detalle de ingredientes
+# ============================================================================
+def get_producto_con_ingredientes(db: Session, producto_id: int) -> Optional[dict]:
+    """
+    Obtiene producto con todos sus ingredientes y anÃ¡lisis de disponibilidad.
+    Usado para el endpoint GET /productos/{id}
+    """
+    
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+    
+    if not producto:
+        return None
+    
+    # Obtener detalle de disponibilidad (incluye anÃ¡lisis de ingredientes)
+    detalle_disponibilidad = disponibilidad_service.get_detalle_disponibilidad(db, producto_id)
+    
+    # Construir respuesta completa
+    return {
+        "producto_id": producto.producto_id,
+        "producto_nombre": producto.producto_nombre,
+        "producto_descripcion": producto.producto_descripcion,
+        "producto_precioUnitario": producto.producto_precioUnitario,
+        "producto_categoria": producto.producto_categoria,
+        "producto_activo": producto.producto_activo,
+        "unidades_disponibles": detalle_disponibilidad["unidades_disponibles"],
+        "disponible": detalle_disponibilidad["disponible"],
+        "ingredientes": detalle_disponibilidad["ingredientes_detalle"],
+        "ingrediente_limitante": detalle_disponibilidad["ingrediente_limitante"]
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 4: Crear nuevo producto
+# ============================================================================
+def create_producto(db: Session, producto_data: dict) -> dict:
+    """
+    Crea un nuevo producto.
+    VALIDACIÃ“N: No puede existir otro producto con el mismo nombre.
+    """
+    
+    # VALIDACIÃ“N: verificar que NO exista otro producto con el mismo nombre
+    existe = db.query(Producto).filter(
+        Producto.producto_nombre == producto_data["producto_nombre"]
+    ).first()
+    
+    if existe:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya existe un producto con ese nombre"
+        )
+    
+    # Crear nuevo producto
+    nuevo_producto = Producto(**producto_data)
+    
+    # Guardar en BD
+    db.add(nuevo_producto)
+    db.commit()
+    db.refresh(nuevo_producto)
+    
+    # Retornar con disponibilidad (serÃ¡ 0 porque no tiene ingredientes todavÃ­a)
+    return {
+        "producto_id": nuevo_producto.producto_id,
+        "producto_nombre": nuevo_producto.producto_nombre,
+        "producto_descripcion": nuevo_producto.producto_descripcion,
+        "producto_precioUnitario": nuevo_producto.producto_precioUnitario,
+        "producto_categoria": nuevo_producto.producto_categoria,
+        "producto_activo": nuevo_producto.producto_activo,
+        "unidades_disponibles": 0,
+        "disponible": False
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 5: Actualizar producto existente
+# ============================================================================
+def update_producto(db: Session, producto_id: int, producto_data: dict) -> Optional[dict]:
+    """
+    Actualiza un producto existente.
+    VALIDACIÃ“N: Si se cambia el nombre, verificar que no exista otro con ese nombre.
+    """
+    
+    # Buscar producto
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+    
+    if not producto:
+        return None
+    
+    # VALIDACIÃ“N: si se actualiza el nombre, verificar unicidad
+    if "producto_nombre" in producto_data:
+        existe_otro = db.query(Producto).filter(
+            Producto.producto_nombre == producto_data["producto_nombre"],
+            Producto.producto_id != producto_id
+        ).first()
+        
+        if existe_otro:
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe un producto con ese nombre"
+            )
+    
+    # Actualizar campos
+    for key, value in producto_data.items():
+        setattr(producto, key, value)
+    
+    db.commit()
+    db.refresh(producto)
+    
+    # Calcular disponibilidad
+    unidades = disponibilidad_service.calcular_unidades_disponibles(db, producto_id)
+    
+    return {
+        "producto_id": producto.producto_id,
+        "producto_nombre": producto.producto_nombre,
+        "producto_descripcion": producto.producto_descripcion,
+        "producto_precioUnitario": producto.producto_precioUnitario,
+        "producto_categoria": producto.producto_categoria,
+        "producto_activo": producto.producto_activo,
+        "unidades_disponibles": unidades,
+        "disponible": unidades > 0
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 6: Eliminar producto (soft delete)
+# ============================================================================
+def delete_producto(db: Session, producto_id: int) -> bool:
+    """
+    Elimina un producto (soft delete).
+    VALIDACIÃ“N CRÃTICA: No se puede eliminar si tiene pedidos activos.
+    """
+    
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+    
+    if not producto:
+        return False
+    
+    # VALIDACIÃ“N CRÃTICA: verificar que no tenga pedidos activos
+    # TODO: Cuando se implemente la tabla Pedidos, descomentar esta validaciÃ³n
+    # from models.pedido_model import Pedido
+    # pedidos_activos = db.query(Pedido).filter(
+    #     Pedido.producto_id == producto_id,
+    #     Pedido.estado.in_(["pendiente", "en preparaciÃ³n"])
+    # ).first()
+    # 
+    # if pedidos_activos:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail="No se puede eliminar: el producto tiene pedidos activos"
+    #     )
+    
+    # Soft delete
+    producto.producto_activo = False
+    db.commit()
+    
+    return True
+
+
+# ============================================================================
+# FUNCIÃ“N 7: AÃ±adir ingrediente a un producto
+# ============================================================================
+def add_ingrediente_to_producto(db: Session, producto_id: int, ingrediente_id: int, cantidad: Decimal) -> dict:
+    """
+    AÃ±ade un ingrediente a un producto con su cantidad necesaria.
+    
+    VALIDACIONES:
+    - Producto existe y estÃ¡ activo
+    - Ingrediente existe y estÃ¡ activo
+    - Cantidad > 0
+    - No existe ya esta combinaciÃ³n (duplicado)
+    """
+    
+    # VALIDACIÃ“N: Producto existe y estÃ¡ activo
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+    
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    # VALIDACIÃ“N: Ingrediente existe y estÃ¡ activo
+    ingrediente = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_id == ingrediente_id,
+        Ingrediente.ingrediente_activo == True
+    ).first()
+    
+    if not ingrediente:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+    
+    # VALIDACIÃ“N: Cantidad > 0
+    if cantidad <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
+    
+    # VALIDACIÃ“N: No existe ya esta relaciÃ³n
+    existe_relacion = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_productoId == producto_id,
+        ProductoIngrediente.productoIngrediente_ingredienteId == ingrediente_id
+    ).first()
+    
+    if existe_relacion:
+        raise HTTPException(
+            status_code=400,
+            detail="Este ingrediente ya estÃ¡ en el producto"
+        )
+    
+    # Crear relaciÃ³n
+    nueva_relacion = ProductoIngrediente(
+        productoIngrediente_productoId=producto_id,
+        productoIngrediente_ingredienteId=ingrediente_id,
+        productoIngrediente_cantidad=cantidad
+    )
+    
+    db.add(nueva_relacion)
+    db.commit()
+    db.refresh(nueva_relacion)
+    
+    return {
+        "productoIngrediente_id": nueva_relacion.productoIngrediente_id,
+        "producto_id": producto_id,
+        "ingrediente_id": ingrediente_id,
+        "ingrediente_nombre": ingrediente.ingrediente_nombre,
+        "cantidad": cantidad
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 8: Actualizar cantidad de ingrediente en producto
+# ============================================================================
+def update_cantidad_ingrediente(db: Session, producto_id: int, ingrediente_id: int, nueva_cantidad: Decimal) -> Optional[dict]:
+    """
+    Actualiza la cantidad necesaria de un ingrediente en un producto.
+    VALIDACIÃ“N: cantidad > 0
+    """
+    
+    # VALIDACIÃ“N: Cantidad > 0
+    if nueva_cantidad <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
+    
+    # Buscar relaciÃ³n
+    relacion = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_productoId == producto_id,
+        ProductoIngrediente.productoIngrediente_ingredienteId == ingrediente_id
+    ).first()
+    
+    if not relacion:
+        return None
+    
+    # Actualizar cantidad
+    relacion.productoIngrediente_cantidad = nueva_cantidad
+    db.commit()
+    db.refresh(relacion)
+    
+    # Obtener nombre del ingrediente
+    ingrediente = db.query(Ingrediente).filter(
+        Ingrediente.ingrediente_id == ingrediente_id
+    ).first()
+    
+    return {
+        "productoIngrediente_id": relacion.productoIngrediente_id,
+        "producto_id": producto_id,
+        "ingrediente_id": ingrediente_id,
+        "ingrediente_nombre": ingrediente.ingrediente_nombre if ingrediente else "Desconocido",
+        "cantidad": nueva_cantidad
+    }
+
+
+# ============================================================================
+# FUNCIÃ“N 9: Quitar ingrediente de un producto
+# ============================================================================
+def remove_ingrediente_from_producto(db: Session, producto_id: int, ingrediente_id: int) -> bool:
+    """
+    Elimina la relaciÃ³n producto-ingrediente.
+    VALIDACIÃ“N: Un producto debe tener al menos 1 ingrediente.
+    """
+    
+    # Buscar relaciÃ³n
+    relacion = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_productoId == producto_id,
+        ProductoIngrediente.productoIngrediente_ingredienteId == ingrediente_id
+    ).first()
+    
+    if not relacion:
+        return False
+    
+    # VALIDACIÃ“N: Verificar que no sea el Ãºltimo ingrediente
+    total_ingredientes = db.query(ProductoIngrediente).filter(
+        ProductoIngrediente.productoIngrediente_productoId == producto_id
+    ).count()
+    
+    if total_ingredientes <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Un producto debe tener al menos un ingrediente"
+        )
+    
+    # Eliminar relaciÃ³n
+    db.delete(relacion)
+    db.commit()
+    
+    return True
+
+--- C:\Proyectos\VillafoodService\frontend\ios\Flutter\ephemeral\flutter_lldb_helper.py ---
+#
+# Generated file, do not edit.
+#
+
+import lldb
+
+def handle_new_rx_page(frame: lldb.SBFrame, bp_loc, extra_args, intern_dict):
+    """Intercept NOTIFY_DEBUGGER_ABOUT_RX_PAGES and touch the pages."""
+    base = frame.register["x0"].GetValueAsAddress()
+    page_len = frame.register["x1"].GetValueAsUnsigned()
+
+    # Note: NOTIFY_DEBUGGER_ABOUT_RX_PAGES will check contents of the
+    # first page to see if handled it correctly. This makes diagnosing
+    # misconfiguration (e.g. missing breakpoint) easier.
+    data = bytearray(page_len)
+    data[0:8] = b'IHELPED!'
+
+    error = lldb.SBError()
+    frame.GetThread().GetProcess().WriteMemory(base, data, error)
+    if not error.Success():
+        print(f'Failed to write into {base}[+{page_len}]', error)
+        return
+
+def __lldb_init_module(debugger: lldb.SBDebugger, _):
+    target = debugger.GetDummyTarget()
+    # Caveat: must use BreakpointCreateByRegEx here and not
+    # BreakpointCreateByName. For some reasons callback function does not
+    # get carried over from dummy target for the later.
+    bp = target.BreakpointCreateByRegex("^NOTIFY_DEBUGGER_ABOUT_RX_PAGES$")
+    bp.SetScriptCallbackFunction('{}.handle_new_rx_page'.format(__name__))
+    bp.SetAutoContinue(True)
+    print("-- LLDB integration loaded --")
+
+--- C:\Proyectos\VillafoodService\main_class\main.py ---
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Importamos los controladores
+from backend.controllers import auth_controller
+from backend.controllers import ingredient_controller  
+from backend.controllers import producto_controller    
+
+from backend.database_manager.database import init_db
+
+app = FastAPI()
+
+# ConfiguraciÃ³n de permisos (CORS) para que el Frontend pueda entrar
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Creamos las tablas al iniciar la aplicaciÃ³n
+init_db()
+
+# Conectamos los controladores
+app.include_router(auth_controller.router, prefix="/auth")
+app.include_router(ingredient_controller.router)  
+app.include_router(producto_controller.router)    
+
+=== CONTENIDO ARCHIVOS DART ===
+
+--- C:\Proyectos\VillafoodService\frontend\lib\main.dart ---
+// Importamos el paquete de Material Design de Flutter
+import 'package:flutter/material.dart';
+import 'package:villafood_frontend/screens_home/home_screen.dart';
+import 'screens_auth/login_screen.dart'; // carga la pantalla inicial
+
+void main() => run_app();
+
+// funcion de inicio sin mayusculas
+void run_app() {
+  runApp(const mi_app());
+}
+
+class mi_app extends StatelessWidget {
+  const mi_app({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      
+      title: 'VillaFoodService',// TÃ­tulo de la aplicaciÃ³n (aparece en el task manager)
+      
+      // ConfiguraciÃ³n del tema visual de la app
+      theme: ThemeData(
+        primarySwatch: Colors.blue,  // Color principal azul
+      ),
+      // define el login como punto de partida
+      home: const home_screen(),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\models\ingrediente.dart ---
+// modelo para gestionar ingredientes del inventario
+class ingrediente {
+  final int ingrediente_id;
+  final String ingrediente_nombre;
+  final double ingrediente_stock_actual;
+  final double ingrediente_stock_minimo;
+  final String ingrediente_unidad_medida;
+  final double ingrediente_precio_unitario;
+  final String estado_stock;
+
+  ingrediente({
+    required this.ingrediente_id,
+    required this.ingrediente_nombre,
+    required this.ingrediente_stock_actual,
+    required this.ingrediente_stock_minimo,
+    required this.ingrediente_unidad_medida,
+    required this.ingrediente_precio_unitario,
+    required this.estado_stock,
+  });
+
+  factory ingrediente.from_json(Map<String, dynamic> json) {
+    return ingrediente(
+      ingrediente_id: json['ingrediente_id'],
+      ingrediente_nombre: json['ingrediente_nombre'],
+      // âœ… protecciÃ³n contra null en todos los campos numÃ©ricos
+      ingrediente_stock_actual: double.parse((json['ingrediente_stockActual'] ?? 0).toString()),
+      ingrediente_stock_minimo: double.parse((json['ingrediente_stockMinimo'] ?? 0).toString()),
+      ingrediente_unidad_medida: json['ingrediente_unidadMedida'] ?? 'kg',
+      ingrediente_precio_unitario: double.parse((json['ingrediente_precioUnitario'] ?? 0).toString()),
+      estado_stock: json['estado_stock'] ?? 'normal',
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\models\producto.dart ---
+// modelo para representar productos y su stock
+class producto {
+  final int producto_id;
+  final String producto_nombre;
+  final String? producto_descripcion;
+  final double producto_precio_unitario;
+  final String producto_categoria;
+  final int unidades_disponibles;
+  final bool disponible;
+
+  producto({
+    required this.producto_id,
+    required this.producto_nombre,
+    this.producto_descripcion,
+    required this.producto_precio_unitario,
+    required this.producto_categoria,
+    required this.unidades_disponibles,
+    required this.disponible,
+  });
+
+  factory producto.from_json(Map<String, dynamic> json) {
+    return producto(
+      producto_id: json['producto_id'],
+      producto_nombre: json['producto_nombre'],
+      producto_descripcion: json['producto_descripcion'],
+      // âœ… backend usa camelCase: producto_precioUnitario
+      producto_precio_unitario: double.parse(json['producto_precioUnitario'].toString()),
+      producto_categoria: json['producto_categoria'],
+      unidades_disponibles: json['unidades_disponibles'] ?? 0,
+      disponible: json['disponible'] ?? false,
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\models\producto_ingrediente.dart ---
+// modelo para la relacion muchos a muchos entre productos e ingredientes
+class producto_ingrediente {
+  final int ingrediente_id;
+  final String ingrediente_nombre;
+  final double cantidad_necesaria;
+  final String? unidad_medida; // nullable â€” puede no venir del backend
+
+  producto_ingrediente({
+    required this.ingrediente_id,
+    required this.ingrediente_nombre,
+    required this.cantidad_necesaria,
+    this.unidad_medida,
+  });
+
+  factory producto_ingrediente.from_json(Map<String, dynamic> json) {
+    return producto_ingrediente(
+      ingrediente_id: json['ingrediente_id'],
+      ingrediente_nombre: json['ingrediente_nombre'],
+      // convierte tanto String "1.0" como num 1.0 sin romper
+      cantidad_necesaria: double.parse(json['cantidad_necesaria'].toString()),
+      unidad_medida: json['unidad_medida'],
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\models\user.dart ---
+// clase 
+class user {
+  final int usuario_id;
+  final String nombre_usuario;
+  final String correo;
+
+  user({required this.usuario_id, required this.nombre_usuario, required this.correo});
+
+  // crea objeto desde json del servidor
+  factory user.from_json(Map<String, dynamic> json) {
+    return user(
+      usuario_id: json['usuario_id'], 
+      nombre_usuario: json['nombre_usuario'],
+      correo: json['correo'],
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_auth\login_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
+import 'register_screen.dart';
+
+class login_screen extends StatefulWidget {
+  const login_screen({super.key});
+  @override
+  State<login_screen> createState() => _login_screen_state();
+}
+
+class _login_screen_state extends State<login_screen> {
+  final email_controller = TextEditingController();
+  final pass_controller = TextEditingController();
+  final service_instancia = api_service();
+
+  // ejecuta el proceso de login
+  void ejecutar_login() async {
+    // frena si faltan datos
+    if (email_controller.text.isEmpty || pass_controller.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('error: rellena todo')));
+      return;
+    }
+    try {
+      final u = await service_instancia.login(email_controller.text, pass_controller.text);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('bienvenido ${u.nombre_usuario}')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('login')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(controller: email_controller, decoration: const InputDecoration(labelText: 'email')),
+            TextField(controller: pass_controller, decoration: const InputDecoration(labelText: 'pass'), obscureText: true),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: ejecutar_login, child: const Text('entrar')),
+            TextButton(
+              // va a pantalla registro
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const register_screen())),
+              child: const Text('Â¿no tienes cuenta? registrate'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_auth\register_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
+
+class register_screen extends StatefulWidget {
+  const register_screen({super.key});
+  @override
+  State<register_screen> createState() => _register_screen_state();
+}
+
+class _register_screen_state extends State<register_screen> {
+  final user_controller = TextEditingController();
+  final email_controller = TextEditingController();
+  final pass_controller = TextEditingController();
+  final service_instancia = api_service();
+
+  // manda el registro al backend
+  void enviar_formulario() async {
+    if (user_controller.text.isEmpty || email_controller.text.isEmpty || pass_controller.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('faltan datos')));
+      return;
+    }
+    try {
+      final u = await service_instancia.register(user_controller.text, email_controller.text, pass_controller.text);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('creado: ${u.nombre_usuario}')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('registro')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(controller: user_controller, decoration: const InputDecoration(labelText: 'nombre')),
+            TextField(controller: email_controller, decoration: const InputDecoration(labelText: 'email')),
+            TextField(controller: pass_controller, decoration: const InputDecoration(labelText: 'pass'), obscureText: true),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: enviar_formulario, child: const Text('crear')),
+            // vuelve atras en la pila de navegacion
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('atras')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_home\home_screen.dart ---
+import 'package:flutter/material.dart';
+import '../screens_ingredientes/ingredientes_list_screen.dart';
+import '../screens_productos/productos_list_screen.dart';
+
+class home_screen extends StatelessWidget {
+  const home_screen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('villafood - menu principal')),
+      body: GridView.count(
+        crossAxisCount: 2, // rejilla de dos columnas
+        padding: const EdgeInsets.all(20),
+        children: [
+          // boton para ir a ingredientes
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ingredientes_list_screen())),
+            child: Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.kitchen, size: 50), Text('ingredientes')])),
+          ),
+          // boton para ir a productos
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const productos_list_screen())),
+            child: Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.restaurant_menu, size: 50), Text('productos')])),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_ingredientes\ingredientes_list_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../services/ingrediente_service.dart';
+import '../../models/ingrediente.dart';
+import '../screens_ingredientes/ingrediente_form_screen.dart';
+
+class ingredientes_list_screen extends StatefulWidget {
+  const ingredientes_list_screen({super.key});
+
+  @override
+  State<ingredientes_list_screen> createState() => _ingredientes_list_screen_state();
+}
+
+class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
+  final service_instancia = ingrediente_service();
+  late Future<List<ingrediente>> _future_ingredientes;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  void _cargar() {
+    setState(() {
+      _future_ingredientes = service_instancia.get_ingredientes();
+    });
+  }
+
+  Color obtener_color_estado(String estado) {
+    if (estado == 'crÃ­tico') return Colors.red;
+    if (estado == 'bajo') return Colors.orange;
+    return Colors.green;
+  }
+
+  Future<void> _confirmar_eliminar(ingrediente item) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar ingrediente'),
+        content: Text('Â¿Eliminar "${item.ingrediente_nombre}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado == true) {
+      try {
+        await service_instancia.delete_ingrediente(item.ingrediente_id);
+        _cargar();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ingrediente eliminado')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('GestiÃ³n de Ingredientes')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final resultado = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (c) => const ingrediente_form_screen()),
+          );
+          if (resultado == true) _cargar();
+        },
+        child: const Icon(Icons.add),
+      ),
+      body: FutureBuilder<List<ingrediente>>(
+        future: _future_ingredientes,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No hay ingredientes'));
+          }
+
+          return ListView.builder(
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final item = snapshot.data![index];
+              return Card(
+                child: ListTile(
+                  title: Text(item.ingrediente_nombre),
+                  subtitle: Text('stock: ${item.ingrediente_stock_actual} ${item.ingrediente_unidad_medida}'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Chip(
+                        label: Text(item.estado_stock.toUpperCase()),
+                        backgroundColor: obtener_color_estado(item.estado_stock),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () async {
+                          final resultado = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ingrediente_form_screen(ingrediente_editar: item),
+                            ),
+                          );
+                          if (resultado == true) _cargar();
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _confirmar_eliminar(item),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_ingredientes\ingrediente_form_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../services/ingrediente_service.dart';
+import '../../models/ingrediente.dart';
+
+class ingrediente_form_screen extends StatefulWidget {
+  final ingrediente? ingrediente_editar;
+
+  const ingrediente_form_screen({super.key, this.ingrediente_editar});
+
+  @override
+  State<ingrediente_form_screen> createState() => _ingrediente_form_screen_state();
+}
+
+class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
+  final form_key = GlobalKey<FormState>();
+  final nombre_controller = TextEditingController();
+  final stock_actual_controller = TextEditingController();
+  final stock_minimo_controller = TextEditingController();
+  final precio_controller = TextEditingController();
+  String unidad_seleccionada = 'kg';
+  bool _is_loading = false;
+
+  final service_instancia = ingrediente_service();
+
+  bool get _es_edicion => widget.ingrediente_editar != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_es_edicion) {
+      final ing = widget.ingrediente_editar!;
+      nombre_controller.text = ing.ingrediente_nombre;
+      stock_actual_controller.text = ing.ingrediente_stock_actual.toString();
+      stock_minimo_controller.text = ing.ingrediente_stock_minimo.toString();
+      precio_controller.text = ing.ingrediente_precio_unitario.toString();
+      unidad_seleccionada = ing.ingrediente_unidad_medida;
+    }
+  }
+
+  @override
+  void dispose() {
+    nombre_controller.dispose();
+    stock_actual_controller.dispose();
+    stock_minimo_controller.dispose();
+    precio_controller.dispose();
+    super.dispose();
+  }
+
+  void guardar() async {
+    if (!form_key.currentState!.validate()) return;
+
+    setState(() => _is_loading = true);
+
+    final datos = {
+      'ingrediente_nombre': nombre_controller.text.trim(),
+      'ingrediente_stockActual': double.parse(stock_actual_controller.text.trim()),
+      'ingrediente_stockMinimo': double.parse(stock_minimo_controller.text.trim()),
+      'ingrediente_unidadMedida': unidad_seleccionada,
+      'ingrediente_precioUnitario': double.parse(precio_controller.text.trim()),
+    };
+
+    try {
+      if (_es_edicion) {
+        await service_instancia.update_ingrediente(
+          widget.ingrediente_editar!.ingrediente_id,
+          datos,
+        );
+      } else {
+        await service_instancia.create_ingrediente(datos);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_es_edicion ? 'Ingrediente actualizado' : 'Ingrediente creado')),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _is_loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_es_edicion ? 'Editar ingrediente' : 'Nuevo ingrediente'),
+      ),
+      body: Form(
+        key: form_key,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            TextFormField(
+              controller: nombre_controller,
+              decoration: const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder()),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa un nombre' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: stock_actual_controller,
+              decoration: const InputDecoration(labelText: 'Stock actual', border: OutlineInputBorder()),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) => double.tryParse(v ?? '') == null ? 'Valor invÃ¡lido' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: stock_minimo_controller,
+              decoration: const InputDecoration(labelText: 'Stock mÃ­nimo', border: OutlineInputBorder()),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) => double.tryParse(v ?? '') == null ? 'Valor invÃ¡lido' : null,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: unidad_seleccionada,
+              decoration: const InputDecoration(labelText: 'Unidad de medida', border: OutlineInputBorder()),
+              items: ['kg', 'g', 'L', 'ml', 'unidades']
+                  .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                  .toList(),
+              onChanged: (v) => setState(() => unidad_seleccionada = v!),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: precio_controller,
+              decoration: const InputDecoration(labelText: 'Precio unitario', border: OutlineInputBorder(), prefixText: 'â‚¬ '),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) => double.tryParse(v ?? '') == null ? 'Valor invÃ¡lido' : null,
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _is_loading ? null : guardar,
+                child: _is_loading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(_es_edicion ? 'Actualizar' : 'Guardar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_productos\productos_list_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../services/producto_service.dart';
+import '../../models/producto.dart';
+import '../screens_productos/producto_ingredientes_screen.dart';
+import '../screens_productos/producto_form_screen.dart';
+
+class productos_list_screen extends StatefulWidget {
+  const productos_list_screen({super.key});
+
+  @override
+  State<productos_list_screen> createState() => _productos_list_screen_state();
+}
+
+class _productos_list_screen_state extends State<productos_list_screen> {
+  final service_instancia = producto_service();
+  late Future<List<producto>> _future_productos;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar_productos();
+  }
+
+  void _cargar_productos() {
+    setState(() {
+      _future_productos = service_instancia.get_productos();
+    });
+  }
+
+  Future<void> _confirmar_eliminar(BuildContext context, producto item) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar producto'),
+        content: Text('Â¿Eliminar "${item.producto_nombre}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado == true) {
+      try {
+        await service_instancia.delete_producto(item.producto_id);
+        _cargar_productos();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Producto eliminado')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('GestiÃ³n de Productos')),
+      body: FutureBuilder<List<producto>>(
+        future: _future_productos,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No hay productos'));
+          }
+
+          return ListView.builder(
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final item = snapshot.data![index];
+              return Card(
+                child: ListTile(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (c) => producto_ingredientes_screen(
+                          producto_id: item.producto_id,
+                          nombre_producto: item.producto_nombre,
+                        ),
+                      ),
+                    ).then((_) => _cargar_productos());
+                  },
+                  title: Text(item.producto_nombre),
+                  subtitle: Text(
+                    '${item.producto_categoria} | â‚¬${item.producto_precio_unitario.toStringAsFixed(2)}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('stock: ${item.unidades_disponibles}'),
+                          Icon(
+                            Icons.circle,
+                            color: item.disponible ? Colors.green : Colors.red,
+                            size: 15,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () async {
+                          final resultado = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => producto_form_screen(producto_editar: item),
+                            ),
+                          );
+                          if (resultado == true) _cargar_productos();
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _confirmar_eliminar(context, item),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final resultado = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const producto_form_screen()),
+          );
+          if (resultado == true) _cargar_productos();
+        },
+        tooltip: 'Nuevo producto',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_productos\producto_form_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../models/producto.dart';
+import '../../services/producto_service.dart';
+
+class producto_form_screen extends StatefulWidget {
+  final producto? producto_editar;
+
+  const producto_form_screen({super.key, this.producto_editar});
+
+  @override
+  State<producto_form_screen> createState() => _producto_form_screen_state();
+}
+
+class _producto_form_screen_state extends State<producto_form_screen> {
+  final _form_key = GlobalKey<FormState>();
+  final _nombre_ctrl = TextEditingController();
+  final _precio_ctrl = TextEditingController();
+  final _descripcion_ctrl = TextEditingController();
+  String _categoria_sel = 'CafeterÃ­a';
+  bool _is_loading = false;
+
+  final List<String> _categorias = ['CafeterÃ­a', 'Restaurante', 'ReposterÃ­a'];
+  final _service = producto_service();
+
+  bool get _es_edicion => widget.producto_editar != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_es_edicion) {
+      final p = widget.producto_editar!;
+      _nombre_ctrl.text = p.producto_nombre;
+      _precio_ctrl.text = p.producto_precio_unitario.toString();
+      _descripcion_ctrl.text = p.producto_descripcion ?? '';
+      _categoria_sel = p.producto_categoria;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nombre_ctrl.dispose();
+    _precio_ctrl.dispose();
+    _descripcion_ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    if (!_form_key.currentState!.validate()) return;
+
+    setState(() => _is_loading = true);
+
+    try {
+      final datos = {
+        'producto_nombre': _nombre_ctrl.text.trim(),
+        'producto_precioUnitario': double.parse(_precio_ctrl.text.trim()),
+        'producto_categoria': _categoria_sel,
+        'producto_descripcion': _descripcion_ctrl.text.trim(),
+      };
+
+      if (_es_edicion) {
+        await _service.update_producto(widget.producto_editar!.producto_id, datos);
+      } else {
+        await _service.create_producto(datos);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_es_edicion ? 'Producto actualizado' : 'Producto creado')),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _is_loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_es_edicion ? 'Editar Producto' : 'Nuevo Producto'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _form_key,
+          child: ListView(
+            children: [
+              TextFormField(
+                controller: _nombre_ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del producto',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Ingresa un nombre' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _precio_ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'Precio unitario',
+                  border: OutlineInputBorder(),
+                  prefixText: 'â‚¬ ',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Ingresa un precio';
+                  final precio = double.tryParse(v.trim());
+                  if (precio == null || precio <= 0) return 'Precio invÃ¡lido';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _categoria_sel,
+                decoration: const InputDecoration(
+                  labelText: 'CategorÃ­a',
+                  border: OutlineInputBorder(),
+                ),
+                items: _categorias.map((cat) {
+                  return DropdownMenuItem(value: cat, child: Text(cat));
+                }).toList(),
+                onChanged: (val) => setState(() => _categoria_sel = val!),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descripcion_ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'DescripciÃ³n (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _is_loading ? null : _guardar,
+                  child: _is_loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(_es_edicion ? 'Actualizar' : 'Crear Producto'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\screens_productos\producto_ingredientes_screen.dart ---
+import 'package:flutter/material.dart';
+import '../../models/producto_ingrediente.dart';
+import '../../models/ingrediente.dart';
+import '../../services/producto_service.dart';
+import '../../services/ingrediente_service.dart';
+
+class producto_ingredientes_screen extends StatefulWidget {
+  final int producto_id;
+  final String nombre_producto;
+
+  const producto_ingredientes_screen({
+    super.key,
+    required this.producto_id,
+    required this.nombre_producto,
+  });
+
+  @override
+  State<producto_ingredientes_screen> createState() => _producto_ingredientes_screen_state();
+}
+
+class _producto_ingredientes_screen_state extends State<producto_ingredientes_screen> {
+  final _prod_service = producto_service();
+  final _ing_service = ingrediente_service();
+  late Future<List<producto_ingrediente>> _future_ingredientes;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  void _cargar() {
+    setState(() {
+      _future_ingredientes = _prod_service.get_ingredientes_producto(widget.producto_id);
+    });
+  }
+
+  Future<void> _mostrar_dialogo_agregar() async {
+    List<ingrediente> disponibles = [];
+    ingrediente? seleccionado;
+    final cantidad_ctrl = TextEditingController(text: '1.0');
+
+    try {
+      disponibles = await _ing_service.get_ingredientes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar ingredientes: $e'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, set_dialog_state) {
+            return AlertDialog(
+              title: const Text('Agregar ingrediente'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<ingrediente>(
+                    decoration: const InputDecoration(
+                      labelText: 'Ingrediente',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: disponibles.map((ing) {
+                      return DropdownMenuItem(
+                        value: ing,
+                        child: Text('${ing.ingrediente_nombre} (${ing.ingrediente_unidad_medida})'),
+                      );
+                    }).toList(),
+                    onChanged: (val) => set_dialog_state(() => seleccionado = val),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: cantidad_ctrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad necesaria',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: seleccionado == null
+                      ? null
+                      : () async {
+                          final cantidad = double.tryParse(cantidad_ctrl.text.trim());
+                          if (cantidad == null || cantidad <= 0) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(content: Text('Cantidad invÃ¡lida')),
+                            );
+                            return;
+                          }
+                          Navigator.pop(ctx);
+                          try {
+                            await _prod_service.agregar_ingrediente(
+                              widget.producto_id,
+                              seleccionado!.ingrediente_id,
+                              cantidad,
+                            );
+                            _cargar();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Ingrediente agregado')),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                  child: const Text('Agregar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    cantidad_ctrl.dispose();
+  }
+
+  Future<void> _confirmar_quitar(producto_ingrediente item, int total) async {
+    if (total <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: mÃ­nimo un ingrediente')),
+      );
+      return;
+    }
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Quitar ingrediente'),
+        content: Text('Â¿Quitar "${item.ingrediente_nombre}" de este producto?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Quitar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado == true) {
+      try {
+        await _prod_service.quitar_ingrediente(widget.producto_id, item.ingrediente_id);
+        _cargar();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ingrediente quitado')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Ingredientes de ${widget.nombre_producto}')),
+      body: FutureBuilder<List<producto_ingrediente>>(
+        future: _future_ingredientes,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('Sin ingredientes asignados'));
+          }
+
+          final lista = snapshot.data!;
+          return ListView.builder(
+            itemCount: lista.length,
+            itemBuilder: (context, index) {
+              final item = lista[index];
+              return ListTile(
+                title: Text(item.ingrediente_nombre),
+                subtitle: Text(
+                  'necesario: ${item.cantidad_necesaria}'
+                  '${item.unidad_medida != null ? " ${item.unidad_medida}" : ""}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _confirmar_quitar(item, lista.length),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _mostrar_dialogo_agregar,
+        tooltip: 'Agregar ingrediente',
+        child: const Icon(Icons.add_link),
+      ),
+    );
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\services\api_service.dart ---
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/user.dart';
+
+class api_service {
+  static const String base_url = 'http://localhost:8000';
+
+  // registro de usuario
+  Future<user> register(String nombre, String email, String password) async {
+    final response = await http.post(
+      Uri.parse('$base_url/auth/register'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({'nombre_usuario': nombre, 'correo': email, 'contraseÃ±a': password}),
+    );
+    
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      // El backend devuelve usuario_ID (mayÃºscula), lo convertimos a minÃºscula
+      return user(
+        usuario_id: data['usuario_ID'],
+        nombre_usuario: data['nombre_usuario'],
+        correo: data['correo']
+      );
+    }
+    
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error en el registro');
+  }
+
+  // inicio de sesion
+  Future<user> login(String email, String password) async {
+    final response = await http.post(
+      Uri.parse('$base_url/auth/login'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({'correo': email, 'contraseÃ±a': password}),
+    );
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // El backend devuelve usuario_ID (mayÃºscula), lo convertimos a minÃºscula
+      return user(
+        usuario_id: data['usuario_ID'],
+        nombre_usuario: data['nombre_usuario'],
+        correo: data['correo']
+      );
+    }
+    
+    final error_data = jsonDecode(response.body);
+    throw Exception(error_data['detail'] ?? 'Error al iniciar sesiÃ³n');
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\services\ingrediente_service.dart ---
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/ingrediente.dart';
+
+class ingrediente_service {
+  static const String base_url = 'http://localhost:8000';
+
+  Future<List<ingrediente>> get_ingredientes() async {
+    final response = await http.get(Uri.parse('$base_url/ingredientes/'));
+    if (response.statusCode == 200) {
+      List<dynamic> data = jsonDecode(response.body);
+      return data.map((i) => ingrediente.from_json(i)).toList();
+    }
+    throw Exception('error al cargar ingredientes');
+  }
+
+  Future<ingrediente> create_ingrediente(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$base_url/ingredientes/'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201) {
+      return ingrediente.from_json(jsonDecode(response.body));
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['detail'] ?? 'error al crear');
+  }
+
+  // âœ… nuevo â€” actualiza un ingrediente existente
+  Future<ingrediente> update_ingrediente(int id, Map<String, dynamic> data) async {
+    final response = await http.put(
+      Uri.parse('$base_url/ingredientes/$id'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 200) {
+      return ingrediente.from_json(jsonDecode(response.body));
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['detail'] ?? 'error al actualizar');
+  }
+
+  Future<void> delete_ingrediente(int id) async {
+    final response = await http.delete(Uri.parse('$base_url/ingredientes/$id'));
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('error al eliminar');
+    }
+  }
+}
+
+--- C:\Proyectos\VillafoodService\frontend\lib\services\producto_service.dart ---
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/producto.dart';
+import '../models/producto_ingrediente.dart';
+
+class producto_service {
+  static const String base_url = 'http://localhost:8000';
+
+  Future<List<producto>> get_productos() async {
+    final response = await http.get(Uri.parse('$base_url/productos/'));
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
+      return data.map((p) => producto.from_json(p)).toList();
+    }
+    throw Exception('Error al cargar productos');
+  }
+
+  Future<producto> get_producto(int id) async {
+    final response = await http.get(Uri.parse('$base_url/productos/$id'));
+    if (response.statusCode == 200) {
+      return producto.from_json(jsonDecode(response.body));
+    }
+    throw Exception('Error al obtener producto');
+  }
+
+  Future<producto> create_producto(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$base_url/productos/'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return producto.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al crear producto');
+  }
+
+  Future<producto> update_producto(int id, Map<String, dynamic> data) async {
+    final response = await http.put(
+      Uri.parse('$base_url/productos/$id'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 200) {
+      return producto.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al actualizar producto');
+  }
+
+  Future<void> delete_producto(int id) async {
+    final response = await http.delete(Uri.parse('$base_url/productos/$id'));
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('Error al eliminar producto');
+    }
+  }
+
+  // â”€â”€â”€ Ingredientes del producto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  Future<List<producto_ingrediente>> get_ingredientes_producto(int producto_id) async {
+    final response = await http.get(Uri.parse('$base_url/productos/$producto_id'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List lista = data['ingredientes'] ?? [];
+      return lista.map((i) => producto_ingrediente.from_json(i)).toList();
+    }
+    throw Exception('Error al obtener ingredientes del producto');
+  }
+
+  Future<void> agregar_ingrediente(int producto_id, int ingrediente_id, double cantidad) async {
+    final response = await http.post(
+      Uri.parse('$base_url/productos/$producto_id/ingredientes'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'ingrediente_id': ingrediente_id,
+        'cantidad_necesaria': cantidad,
+      }),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al agregar ingrediente');
+    }
+  }
+
+  Future<void> quitar_ingrediente(int producto_id, int ingrediente_id) async {
+    final response = await http.delete(
+      Uri.parse('$base_url/productos/$producto_id/ingredientes/$ingrediente_id'),
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al quitar ingrediente');
+    }
+  }
+}
