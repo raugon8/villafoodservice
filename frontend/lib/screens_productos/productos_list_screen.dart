@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/producto_service.dart';
 import '../../models/producto.dart';
+import '../../models/cart_manager.dart';
 import '../screens_productos/producto_ingredientes_screen.dart';
 import '../screens_productos/producto_form_screen.dart';
+import '../screens_client/cart_screen.dart';
 
 class productos_list_screen extends StatefulWidget {
   const productos_list_screen({super.key});
@@ -65,7 +67,31 @@ class _productos_list_screen_state extends State<productos_list_screen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestión de Productos')),
+      appBar: AppBar(
+        title: const Text('Gestión de Productos'),
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => cart_screen())
+                ).then((_) => setState(() {})),
+              ),
+              if (cart_manager.total_items > 0)
+                Positioned(
+                  right: 6, top: 6,
+                  child: CircleAvatar(
+                    radius: 8,
+                    backgroundColor: Colors.red,
+                    child: Text('${cart_manager.total_items}', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                  ),
+                )
+            ],
+          )
+        ],
+      ),
       body: FutureBuilder<List<producto>>(
         future: _future_productos,
         builder: (context, snapshot) {
@@ -115,6 +141,21 @@ class _productos_list_screen_state extends State<productos_list_screen> {
                         ],
                       ),
                       const SizedBox(width: 8),
+                      // añadir al carrito
+                      IconButton(
+                        icon: const Icon(Icons.add_shopping_cart, color: Colors.green),
+                        onPressed: item.disponible ? () {
+                          cart_manager.add_item(
+                            item.producto_id,
+                            item.producto_nombre,
+                            item.producto_precio_unitario
+                          );
+                          setState(() {});
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${item.producto_nombre} añadido al carrito'))
+                          );
+                        } : null,
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () async {
