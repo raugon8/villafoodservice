@@ -5,24 +5,51 @@ import '../models/order_staff_model.dart';
 class order_staff_service {
   static const String base_url = 'http://localhost:8000';
 
-  // lista pedidos filtrados por servicio (cafeteria, restaurante, etc)
-  Future<List<order_staff_item>> list_staff_orders(String servicio) async {
-    // simulacion para la tarea 6
-    await Future.delayed(const Duration(seconds: 1));
-    return [
-      order_staff_item(
-        pedido_id: 601, 
-        usuario_nombre: 'juan perez', 
-        pedido_estado: 'pendiente', 
-        pedido_total: 12.0, 
-        es_nuevo: true, 
-        pedido_notas: 'sin cebolla'
-      ),
-    ];
+  // lists orders filtered by service for staff
+  Future<List<order_staff_item>> list_staff_orders(
+    String service, {
+    String? status,
+    String? search,
+    int skip = 0,
+    int limit = 20
+  }) async {
+    String url = '$base_url/pedidos/staff?service=$service&skip=$skip&limit=$limit';
+    if (status != null && status.isNotEmpty) url += '&status=$status';
+    if (search != null && search.isNotEmpty) url += '&search=$search';
+
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
+      return data.map((o) => order_staff_item.from_json(o)).toList();
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error loading staff orders');
   }
 
-  // actualiza el estado del pedido: pendiente -> en_preparacion -> listo
-  Future<void> update_order_status(int id, String nuevo_estado) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+  // gets full detail of a single order
+  Future<order_staff_item> get_staff_order_detail(int order_id, String service) async {
+    final response = await http.get(
+      Uri.parse('$base_url/pedidos/staff/$order_id?service=$service'),
+    );
+    if (response.statusCode == 200) {
+      return order_staff_item.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error loading order detail');
+  }
+
+  // updates order status: pendiente -> en_preparacion -> listo
+  Future<order_staff_item> update_order_status(
+    int order_id,
+    String new_status,
+    String service
+  ) async {
+    final response = await http.patch(
+      Uri.parse('$base_url/pedidos/staff/$order_id/estado?service=$service'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({'order_status': new_status}),
+    );
+    if (response.statusCode == 200) {
+      return order_staff_item.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error updating status');
   }
 }
