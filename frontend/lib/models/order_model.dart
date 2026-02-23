@@ -40,7 +40,7 @@ class order {
       order_status:    json['order_status'],
       order_total:     double.parse(json['order_total'].toString()),
       order_date_time: DateTime.parse(json['order_date_time']),
-      details:         (json['details'] as List).map((d) => order_detail.from_json(d)).toList(),
+      details:         (json['details'] as List?)?.map((d) => order_detail.from_json(d)).toList() ?? [],
     );
   }
 }

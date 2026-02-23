@@ -10,6 +10,9 @@ from datetime import datetime
 # Valid order states
 VALID_STATES = ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cancelado']
 
+# Valid states for staff (cannot cancel or mark as delivered)
+VALID_STAFF_STATES = ['pendiente', 'en_preparacion', 'listo']
+
 # Allowed state transitions
 VALID_TRANSITIONS = {
     'pendiente':      ['en_preparacion', 'cancelado'],
@@ -17,6 +20,13 @@ VALID_TRANSITIONS = {
     'listo':          ['entregado'],
     'entregado':      [],
     'cancelado':      []
+}
+
+# Staff-only transitions (more restricted)
+VALID_STAFF_TRANSITIONS = {
+    'pendiente':      ['en_preparacion'],
+    'en_preparacion': ['listo'],
+    'listo':          [],
 }
 
 
@@ -45,6 +55,7 @@ class OrderCreate(BaseModel):
     """Schema to create a new order"""
     items: List[CartDetailBase]
     order_notes: Optional[str] = None
+    order_pickup_time: Optional[datetime] = None  # Task 6
 
     @validator('items')
     def validate_items(cls, v):
@@ -100,6 +111,8 @@ class OrderResponse(BaseModel):
     order_status: str
     order_total: Decimal
     order_notes: Optional[str] = None
+    order_service: Optional[str] = None
+    order_pickup_time: Optional[datetime] = None
     details: List[OrderDetailResponse] = []
 
     class Config:
@@ -114,6 +127,25 @@ class OrderListResponse(BaseModel):
     order_status: str
     order_total: Decimal
     items_count: int
+
+    class Config:
+        from_attributes = True
+
+
+class OrderStaffResponse(BaseModel):
+    """Order response for staff/dependiente view"""
+    order_id: int
+    user_id: int
+    user_name: str
+    order_date_time: datetime
+    order_status: str
+    order_total: Decimal
+    order_notes: Optional[str] = None
+    order_service: Optional[str] = None
+    order_pickup_time: Optional[datetime] = None
+    is_new: bool
+    items_count: int
+    details: List[OrderDetailResponse] = []
 
     class Config:
         from_attributes = True

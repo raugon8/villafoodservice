@@ -7,7 +7,7 @@ from backend.controllers import ingredient_controller
 from backend.controllers import producto_controller
 from backend.controllers import order_controller
 
-from backend.database_manager.database import init_db
+from backend.database_manager.database import init_db, migrate_db
 
 app = FastAPI()
 
@@ -22,6 +22,9 @@ app.add_middleware(
 
 # Creamos las tablas al iniciar la aplicación
 init_db()
+
+# Aplicamos migraciones incrementales
+migrate_db()
 
 # Conectamos los controladores
 app.include_router(auth_controller.router, prefix="/auth")

@@ -1,0 +1,109 @@
+﻿=== order_staff_model.dart ===
+// modelo para que el dependiente vea los pedidos
+class order_staff_item {
+  final int pedido_id;
+  final String usuario_nombre;
+  final String pedido_estado;
+  final double pedido_total;
+  final bool es_nuevo;
+  final String pedido_notas;
+
+  order_staff_item({
+    required this.pedido_id, 
+    required this.usuario_nombre, 
+    required this.pedido_estado, 
+    required this.pedido_total, 
+    required this.es_nuevo,
+    required this.pedido_notas
+  });
+
+  // mapea el json del staff con el nuevo campo es_nuevo
+  factory order_staff_item.from_json(Map<String, dynamic> json) {
+    return order_staff_item(
+      pedido_id: json['pedido_id'],
+      usuario_nombre: json['usuario_nombre'] ?? 'cliente',
+      pedido_estado: json['pedido_estado'],
+      pedido_total: (json['pedido_total'] as num).toDouble(),
+      es_nuevo: json['es_nuevo'] ?? false,
+      pedido_notas: json['pedido_notas'] ?? '',
+    );
+  }
+}
+
+=== order_staff_service.dart ===
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/order_staff_model.dart';
+
+class order_staff_service {
+  static const String base_url = 'http://localhost:8000';
+
+  // lista pedidos filtrados por servicio (cafeteria, restaurante, etc)
+  Future<List<order_staff_item>> list_staff_orders(String servicio) async {
+    // simulacion para la tarea 6
+    await Future.delayed(const Duration(seconds: 1));
+    return [
+      order_staff_item(
+        pedido_id: 601, 
+        usuario_nombre: 'juan perez', 
+        pedido_estado: 'pendiente', 
+        pedido_total: 12.0, 
+        es_nuevo: true, 
+        pedido_notas: 'sin cebolla'
+      ),
+    ];
+  }
+
+  // actualiza el estado del pedido: pendiente -> en_preparacion -> listo
+  Future<void> update_order_status(int id, String nuevo_estado) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+}
+
+=== order_list_screen.dart ===
+import 'package:flutter/material.dart';
+import '../../services/order_staff_service.dart';
+import '../../models/order_staff_model.dart';
+
+class order_list_screen extends StatefulWidget {
+  const order_list_screen({super.key});
+  @override
+  State<order_list_screen> createState() => _order_list_screen_state();
+}
+
+class _order_list_screen_state extends State<order_list_screen> {
+  final service_instancia = order_staff_service();
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('gestion de pedidos staff')),
+      body: FutureBuilder<List<order_staff_item>>(
+        future: service_instancia.list_staff_orders('restaurante'), // simulamos servicio restaurante
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          return ListView.builder(
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final item = snapshot.data![index];
+              return Card(
+                // si es nuevo se pone en color amarillento
+                color: item.es_nuevo ? Colors.yellow[100] : Colors.white,
+                child: ListTile(
+                  title: Text('pedido #${item.pedido_id} - ${item.usuario_nombre}'),
+                  subtitle: Text('estado: ${item.pedido_estado} | total: â‚¬${item.pedido_total}'),
+                  trailing: item.es_nuevo ? const Chip(label: Text('NUEVO'), backgroundColor: Colors.orange) : null,
+                  onTap: () {
+                    // confirmacion para cambiar estado
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('iniciando preparacion...')));
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

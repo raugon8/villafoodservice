@@ -5,10 +5,11 @@ from backend.database_manager.database import Base
 class User(Base):
     __tablename__ = "usuarios"
 
-    usuario_ID     = Column(Integer, primary_key=True, autoincrement=True)
-    nombre_usuario = Column(String, nullable=False)
-    correo         = Column(String, unique=True, nullable=False)
-    contraseña     = Column(String, nullable=False)
+    usuario_ID       = Column(Integer, primary_key=True, autoincrement=True)
+    nombre_usuario   = Column(String, nullable=False)
+    correo           = Column(String, unique=True, nullable=False)
+    contraseña       = Column(String, nullable=False)
+    usuario_servicio = Column(String(20), nullable=True)  # cafeteria, restaurante, reposteria (Task 6)
 
-    # Relation with orders table (added in Tarea 5)
+    # Relations
     orders = relationship("OrderModel", back_populates="user")
