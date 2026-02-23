@@ -13,3 +13,4 @@ class User(Base):
 
     # Relations
     orders = relationship("OrderModel", back_populates="user")
+    roles  = relationship("RoleModel", secondary="user_roles", back_populates="users")

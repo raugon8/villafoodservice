@@ -1,0 +1,159 @@
+﻿=== home_screen (nuevo) ===
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart'; 
+import '../screens_ingredientes/ingredientes_list_screen.dart'; 
+import '../screens_productos/productos_list_screen.dart';
+import '../screens_client/cart_screen.dart'; 
+import '../screens_client/orders_screen.dart'; 
+import '../screens_staff/order_list_screen.dart'; 
+import '../admin/dashboard_screen.dart'; 
+import '../admin/user_management_screen.dart'; 
+
+class home_screen extends StatelessWidget {
+  const home_screen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // leemos el rol activo del usuario
+    final auth = Provider.of<auth_provider>(context);
+    final String? rol = auth.current_role;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('villafood - menu principal')),
+      body: GridView.count(
+        crossAxisCount: 2, 
+        padding: const EdgeInsets.all(20),
+        children: [
+          // dashboard estadisticas - solo admin
+          if (rol == 'admin')
+            _crear_boton(context, Icons.analytics, 'dashboard', const dashboard_screen()),
+
+          // gestion de usuarios - solo admin
+          if (rol == 'admin')
+            _crear_boton(context, Icons.people, 'usuarios', const user_management_screen()),
+
+          // gestion de ingredientes - admin o almacen
+          if (rol == 'admin' || rol == 'almacen')
+            _crear_boton(context, Icons.kitchen, 'ingredientes', const ingredientes_list_screen()),
+          
+          // gestion de productos - admin, almacen o dependiente
+          if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
+            _crear_boton(context, Icons.restaurant_menu, 'productos', const productos_list_screen()),
+          
+          // carrito de compras - todos
+          _crear_boton(context, Icons.shopping_cart, 'carrito', const cart_screen()),
+          
+          // mis pedidos - cliente
+          _crear_boton(context, Icons.history, 'mis pedidos', const orders_screen()),
+          
+          // gestion pedidos - staff - admin o dependiente
+          if (rol == 'admin' || rol == 'dependiente')
+            _crear_boton(context, Icons.assignment, 'gestion staff', const order_list_screen()),
+        ],
+      ),
+    );
+  }
+
+  // funcion auxiliar original intacta
+  Widget _crear_boton(BuildContext context, IconData icono, String texto, Widget pantalla) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => pantalla)),
+      child: Card(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [Icon(icono, size: 40), Text(texto)],
+        ),
+      ),
+    );
+  }
+}
+
+=== user_management_screen.dart ===
+import 'package:flutter/material.dart';
+import '../../services/user_service.dart'; // importamos el servicio
+import '../../models/role_model.dart'; // importamos el modelo
+
+class user_management_screen extends StatefulWidget {
+  const user_management_screen({super.key});
+  @override
+  State<user_management_screen> createState() => _user_management_screen_state();
+}
+
+class _user_management_screen_state extends State<user_management_screen> {
+  final service_instancia = user_service();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('gestion de usuarios')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('simulacion: crear usuario'))),
+        child: const Icon(Icons.add),
+      ),
+      body: FutureBuilder<List<user_with_roles>>(
+        future: service_instancia.list_users(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          return ListView.builder(
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              final user = snapshot.data![index];
+              return Card(
+                child: ListTile(
+                  leading: Icon(Icons.person, color: user.user_active ? Colors.green : Colors.grey),
+                  title: Text(user.user_name),
+                  subtitle: Text(user.user_email),
+                  trailing: Chip(label: Text(user.roles.join(', '))),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+=== main.dart ===
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; 
+import 'providers/auth_provider.dart'; 
+import 'screens/screens_home/home_screen.dart'; 
+import 'screens/screens_auth/role_selector_screen.dart'; 
+import 'screens/admin/dashboard_screen.dart'; 
+
+void main() {
+  runApp(
+    // el multiprovider permite que el rol sea accesible desde cualquier pantalla
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => auth_provider()),
+      ],
+      child: const mi_app(),
+    ),
+  );
+}
+
+class mi_app extends StatelessWidget {
+  const mi_app({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'villafood service',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
+        useMaterial3: true,
+      ),
+      // definimos las rutas para que la navegacion sea limpia
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const home_screen(),
+        '/role_selector': (context) => const role_selector_screen(),
+        '/admin/dashboard': (context) => const dashboard_screen(),
+      },
+    );
+  }
+}

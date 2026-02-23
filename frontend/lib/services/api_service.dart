@@ -12,17 +12,14 @@ class api_service {
       headers: {'content-type': 'application/json'},
       body: jsonEncode({'nombre_usuario': nombre, 'correo': email, 'contraseña': password}),
     );
-    
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
-      // El backend devuelve usuario_ID (mayúscula), lo convertimos a minúscula
       return user(
-        usuario_id: data['usuario_ID'],
+        usuario_id:     data['usuario_ID'],
         nombre_usuario: data['nombre_usuario'],
-        correo: data['correo']
+        correo:         data['correo']
       );
     }
-    
     throw Exception(jsonDecode(response.body)['detail'] ?? 'Error en el registro');
   }
 
@@ -33,18 +30,26 @@ class api_service {
       headers: {'content-type': 'application/json'},
       body: jsonEncode({'correo': email, 'contraseña': password}),
     );
-    
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // El backend devuelve usuario_ID (mayúscula), lo convertimos a minúscula
       return user(
-        usuario_id: data['usuario_ID'],
+        usuario_id:     data['usuario_ID'],
         nombre_usuario: data['nombre_usuario'],
-        correo: data['correo']
+        correo:         data['correo']
       );
     }
-    
-    final error_data = jsonDecode(response.body);
-    throw Exception(error_data['detail'] ?? 'Error al iniciar sesión');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al iniciar sesión');
+  }
+
+  // obtener roles del usuario
+  Future<List<String>> get_user_roles(int user_id) async {
+    final response = await http.get(
+      Uri.parse('$base_url/usuarios/me/roles?user_id=$user_id'),
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<String>.from(data['roles']);
+    }
+    throw Exception('Error al obtener roles');
   }
 }

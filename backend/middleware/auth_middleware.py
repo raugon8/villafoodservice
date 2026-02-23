@@ -1,17 +1,17 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from functools import wraps
-from database_manager.database import SessionLocal
-from models.role_model import RoleModel, UserRoleModel
+from backend.database_manager.database import SessionLocal
+from backend.models.role_model import RoleModel, UserRoleModel
 
 
 def RequireRole(allowed_roles: list):
-    #Decorador para restringir acceso segun el rol
+    """Decorator to restrict access based on user role"""
 
     def Decorator(func):
         @wraps(func)
         async def Wrapper(*args, **kwargs):
-            # Obtenemos datos de la request (esto cambiara a JWT mas adelante)
-            user_id = kwargs.get("user_id")
+            # Get data from request (will change to JWT later)
+            user_id      = kwargs.get("user_id")
             current_role = kwargs.get("current_role")
 
             if not user_id or not current_role:
@@ -19,7 +19,6 @@ def RequireRole(allowed_roles: list):
 
             db = SessionLocal()
             try:
-                # Consulta para verificar si el usuario tiene el rol activo
                 has_access = db.query(RoleModel).join(UserRoleModel).filter(
                     UserRoleModel.user_id == user_id,
                     RoleModel.role_name == current_role,
