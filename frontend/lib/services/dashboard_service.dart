@@ -5,54 +5,22 @@ import '../models/dashboard_model.dart';
 class dashboard_service {
   static const String base_url = 'http://localhost:8000';
 
-  Future<dashboard_data> get_stats(String periodo, {int user_id = 1}) async {
-    final pedidos_res      = await http.get(Uri.parse('$base_url/pedidos/?user_id=$user_id&skip=0&limit=1000'));
-    final productos_res    = await http.get(Uri.parse('$base_url/productos/'));
-    final ingredientes_res = await http.get(Uri.parse('$base_url/ingredientes/'));
+  Future<DashboardData> get_stats({
+    required int user_id,
+    required String current_role,
+    String? periodo,
+    String? fecha_inicio,
+    String? fecha_fin,
+  }) async {
+    String url = '$base_url/dashboard/stats?user_id=$user_id&current_role=$current_role';
+    if (periodo != null && periodo.isNotEmpty) url += '&periodo=$periodo';
+    if (fecha_inicio != null) url += '&fecha_inicio=$fecha_inicio';
+    if (fecha_fin != null) url += '&fecha_fin=$fecha_fin';
 
-    Map<String, dynamic> pedidos_stats = {'total': 0, 'entregados': 0, 'cancelados': 0};
-    Map<String, dynamic> ventas_stats  = {'ingresos': 0.0, 'ticket_promedio': 0.0};
-    if (pedidos_res.statusCode == 200) {
-      final List<dynamic> pedidos = jsonDecode(pedidos_res.body);
-      int entregados = pedidos.where((p) => p['order_status'] == 'entregado').length;
-      int cancelados = pedidos.where((p) => p['order_status'] == 'cancelado').length;
-      double total_ingresos = pedidos
-        .where((p) => p['order_status'] != 'cancelado')
-        .fold(0.0, (sum, p) => sum + (p['order_total'] as num).toDouble());
-      pedidos_stats = {
-        'total':      pedidos.length,
-        'entregados': entregados,
-        'cancelados': cancelados,
-      };
-      ventas_stats = {
-        'ingresos':        total_ingresos,
-        'ticket_promedio': pedidos.isEmpty ? 0.0 : total_ingresos / pedidos.length,
-      };
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      return DashboardData.from_json(jsonDecode(response.body));
     }
-
-    Map<String, dynamic> productos_stats = {'activos': 0, 'sin_stock': 0};
-    if (productos_res.statusCode == 200) {
-      final List<dynamic> productos = jsonDecode(productos_res.body);
-      productos_stats = {
-        'activos':   productos.length,
-        'sin_stock': productos.where((p) => (p['available_units'] ?? 0) == 0).length,
-      };
-    }
-
-    Map<String, dynamic> ingredientes_stats = {'critico': 0, 'bajo': 0};
-    if (ingredientes_res.statusCode == 200) {
-      final List<dynamic> ingredientes = jsonDecode(ingredientes_res.body);
-      ingredientes_stats = {
-        'critico': ingredientes.where((i) => (i['stock_actual'] ?? 0) == 0).length,
-        'bajo':    ingredientes.where((i) => (i['stock_actual'] ?? 0) > 0 && (i['stock_actual'] ?? 0) < 10).length,
-      };
-    }
-
-    return dashboard_data(
-      pedidos:      pedidos_stats,
-      productos:    productos_stats,
-      ingredientes: ingredientes_stats,
-      ventas:       ventas_stats,
-    );
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error cargando estadísticas');
   }
 }

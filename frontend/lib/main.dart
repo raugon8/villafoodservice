@@ -5,6 +5,7 @@ import 'screens/screens_auth/login_screen.dart';
 import 'screens/screens_home/home_screen.dart';
 import 'screens/screens_auth/role_selector_screen.dart';
 import 'screens/admin/dashboard_screen.dart';
+import 'screens/admin/user_management_screen.dart';
 
 void main() {
   runApp(
@@ -35,6 +36,7 @@ class mi_app extends StatelessWidget {
         '/':                (context) => const home_screen(),
         '/role_selector':   (context) => const role_selector_screen(),
         '/admin/dashboard': (context) => const dashboard_screen(),
+        '/admin/users':     (context) => const user_management_screen(),
       },
     );
   }
