@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../services/ingrediente_service.dart';
 import '../../../models/ingrediente.dart';
+import '../../../providers/auth_provider.dart';
 import 'ingrediente_form_screen.dart';
 
 class ingredientes_list_screen extends StatefulWidget {
@@ -21,8 +23,12 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
   }
 
   void _cargar() {
+    final auth = Provider.of<auth_provider>(context, listen: false);
     setState(() {
-      _future_ingredientes = service_instancia.get_ingredientes();
+      _future_ingredientes = service_instancia.get_ingredientes(
+        user_id: auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'admin',
+      );
     });
   }
 
@@ -50,7 +56,12 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
 
     if (confirmado == true) {
       try {
-        await service_instancia.delete_ingrediente(item.ingrediente_id);
+        final auth = Provider.of<auth_provider>(context, listen: false);
+        await service_instancia.delete_ingrediente(
+          item.ingrediente_id,
+          user_id: auth.user_id ?? 1,
+          current_role: auth.current_role ?? 'admin',
+        );
         _cargar();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

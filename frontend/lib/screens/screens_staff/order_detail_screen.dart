@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/order_staff_service.dart';
 import '../../models/order_staff_model.dart';
+import '../../providers/auth_provider.dart';
 
 class order_detail_screen extends StatefulWidget {
   final int order_id;
@@ -31,8 +33,12 @@ class _order_detail_screen_state extends State<order_detail_screen> {
   Future<void> _load_detail() async {
     setState(() { loading = true; error = null; });
     try {
+      final auth = Provider.of<auth_provider>(context, listen: false);
       final result = await service_instancia.get_staff_order_detail(
-        widget.order_id, widget.service
+        widget.order_id,
+        widget.service,
+        user_id: auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'dependiente',
       );
       setState(() { order = result; loading = false; });
     } catch (e) {
@@ -56,8 +62,13 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     if (confirmed != true) return;
 
     try {
+      final auth = Provider.of<auth_provider>(context, listen: false);
       final updated = await service_instancia.update_order_status(
-        widget.order_id, new_status, widget.service
+        widget.order_id,
+        new_status,
+        widget.service,
+        user_id: auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'dependiente',
       );
       setState(() { order = updated; });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,7 +123,6 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // order info card
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -141,7 +151,6 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                         ),
                       ),
                     ),
-                    // notes
                     if (order!.order_notes.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Card(
@@ -153,7 +162,6 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                         ),
                       ),
                     ],
-                    // products list
                     const SizedBox(height: 8),
                     const Text('Productos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
@@ -165,7 +173,6 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     )),
-                    // action button
                     const SizedBox(height: 16),
                     Center(child: _status_button()),
                   ],

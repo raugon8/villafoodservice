@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/order_model.dart';
 import '../../models/cart_manager.dart';
 import '../../services/order_service.dart';
+import '../../providers/auth_provider.dart';
 
 class cart_screen extends StatefulWidget {
   const cart_screen({super.key});
@@ -21,10 +23,12 @@ class _cart_screen_state extends State<cart_screen> {
       return;
     }
     try {
+      final auth = Provider.of<auth_provider>(context, listen: false);
       final nuevo_pedido = await service_instancia.create_order(
         List.from(cart_manager.items),
         notas_controller.text,
-        1 // user_id temporal hasta tener sesión
+        auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'cliente',
       );
       cart_manager.clear();
       ScaffoldMessenger.of(context).showSnackBar(

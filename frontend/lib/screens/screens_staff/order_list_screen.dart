@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/order_staff_service.dart';
 import '../../models/order_staff_model.dart';
+import '../../providers/auth_provider.dart';
 import 'order_detail_screen.dart';
 
 class order_list_screen extends StatefulWidget {
@@ -14,7 +16,6 @@ class _order_list_screen_state extends State<order_list_screen> {
   final service_instancia = order_staff_service();
   final search_controller = TextEditingController();
 
-  // temporary: hardcoded service until role system (Task 7)
   final String current_service = 'restaurante';
 
   List<order_staff_item> orders = [];
@@ -29,7 +30,6 @@ class _order_list_screen_state extends State<order_list_screen> {
   void initState() {
     super.initState();
     _load_orders();
-    // auto refresh every 30 seconds
     refresh_timer = Timer.periodic(const Duration(seconds: 30), (_) => _load_orders());
   }
 
@@ -43,8 +43,11 @@ class _order_list_screen_state extends State<order_list_screen> {
   Future<void> _load_orders() async {
     setState(() { loading = true; error = null; });
     try {
+      final auth = Provider.of<auth_provider>(context, listen: false);
       final result = await service_instancia.list_staff_orders(
         current_service,
+        user_id: auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'dependiente',
         status: selected_status,
         search: search_controller.text.isEmpty ? null : search_controller.text,
       );
@@ -69,7 +72,6 @@ class _order_list_screen_state extends State<order_list_screen> {
       ),
       body: Column(
         children: [
-          // search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: TextField(
@@ -83,7 +85,6 @@ class _order_list_screen_state extends State<order_list_screen> {
               onChanged: (_) => _load_orders(),
             ),
           ),
-          // status filter
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: DropdownButtonFormField<String>(
@@ -99,7 +100,6 @@ class _order_list_screen_state extends State<order_list_screen> {
               },
             ),
           ),
-          // order list
           Expanded(
             child: loading
               ? const Center(child: CircularProgressIndicator())

@@ -23,12 +23,15 @@ from backend.services import producto_service, disponibilidad_service
 # Import de dependencia de BD
 from backend.database_manager.database import get_db
 
+# Import de middleware de roles
+from backend.middleware.auth_middleware import RequireRole
+
 # Router
 router = APIRouter(prefix="/productos", tags=["productos"])
 
 
 # ============================================================================
-# ENDPOINTS DE LISTADO Y CONSULTA
+# ENDPOINTS DE LISTADO Y CONSULTA - sin restricción de rol
 # ============================================================================
 
 @router.get("/", response_model=List[ProductoResponse])
@@ -113,12 +116,14 @@ def obtener_disponibilidad_detallada(
 
 
 # ============================================================================
-# ENDPOINTS DE CREACIÓN Y MODIFICACIÓN
+# ENDPOINTS DE CREACIÓN Y MODIFICACIÓN - requieren rol
 # ============================================================================
 
 @router.post("/", response_model=ProductoResponse, status_code=status.HTTP_201_CREATED)
 def crear_producto(
     producto_in: ProductoCreate,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -131,6 +136,7 @@ def crear_producto(
     
     Nota: El producto se crea sin ingredientes. Usar endpoints de ingredientes para añadirlos.
     """
+    RequireRole(["admin", "almacen", "dependiente"])
     producto_data = producto_in.dict()
     return producto_service.create_producto(db, producto_data)
 
@@ -139,6 +145,8 @@ def crear_producto(
 def actualizar_producto(
     producto_id: int,
     producto_in: ProductoUpdate,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -151,7 +159,7 @@ def actualizar_producto(
     - Si se cambia precio, debe ser > 0
     - Si se cambia categoría, debe ser válida
     """
-    # Convertir a dict y eliminar valores None
+    RequireRole(["admin", "almacen", "dependiente"])
     producto_data = {k: v for k, v in producto_in.dict().items() if v is not None}
     
     if not producto_data:
@@ -174,6 +182,8 @@ def actualizar_producto(
 @router.delete("/{producto_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_producto(
     producto_id: int,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -184,6 +194,7 @@ def eliminar_producto(
     
     Nota: No elimina físicamente, solo marca como inactivo (producto_activo = False)
     """
+    RequireRole(["admin", "almacen", "dependiente"])
     eliminado = producto_service.delete_producto(db, producto_id)
     
     if not eliminado:
@@ -196,13 +207,15 @@ def eliminar_producto(
 
 
 # ============================================================================
-# ENDPOINTS DE GESTIÓN DE INGREDIENTES
+# ENDPOINTS DE GESTIÓN DE INGREDIENTES - requieren rol
 # ============================================================================
 
 @router.post("/{producto_id}/ingredientes", status_code=status.HTTP_201_CREATED)
 def añadir_ingrediente_a_producto(
     producto_id: int,
     ingrediente_in: ProductoIngredienteBase,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -220,6 +233,7 @@ def añadir_ingrediente_a_producto(
         "cantidad_necesaria": 0.2
     }
     """
+    RequireRole(["admin", "almacen", "dependiente"])
     return producto_service.add_ingrediente_to_producto(
         db,
         producto_id,
@@ -233,6 +247,8 @@ def actualizar_cantidad_ingrediente(
     producto_id: int,
     ingrediente_id: int,
     cantidad: Decimal,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -247,6 +263,7 @@ def actualizar_cantidad_ingrediente(
         "cantidad": 0.5
     }
     """
+    RequireRole(["admin", "almacen", "dependiente"])
     if cantidad <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -273,6 +290,8 @@ def actualizar_cantidad_ingrediente(
 def quitar_ingrediente_de_producto(
     producto_id: int,
     ingrediente_id: int,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -282,6 +301,7 @@ def quitar_ingrediente_de_producto(
     - La relación debe existir
     - Un producto debe tener al menos 1 ingrediente (no se puede eliminar el último)
     """
+    RequireRole(["admin", "almacen", "dependiente"])
     eliminado = producto_service.remove_ingrediente_from_producto(
         db,
         producto_id,

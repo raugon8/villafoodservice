@@ -18,6 +18,7 @@ from backend.object_class.orders import (
 )
 from backend.services import order_service, order_staff_service
 from backend.database_manager.database import get_db
+from backend.middleware.auth_middleware import RequireRole
 
 router = APIRouter(prefix="/pedidos", tags=["pedidos"])
 
@@ -27,8 +28,14 @@ router = APIRouter(prefix="/pedidos", tags=["pedidos"])
 # ============================================================================
 
 @router.post("/validar-carrito", response_model=List[ValidatedCartItemResponse])
-def validate_cart(cart: CartCreate, db: Session = Depends(get_db)):
+def validate_cart(
+    cart: CartCreate,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
     """Checks if products in cart are available"""
+    RequireRole(["cliente", "admin"])
     return order_service.validate_cart(db, cart.items)
 
 
@@ -36,21 +43,25 @@ def validate_cart(cart: CartCreate, db: Session = Depends(get_db)):
 def create_order(
     order_data: OrderCreate,
     user_id: int = Query(..., description="ID of the user placing the order"),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """Creates a new order and updates ingredient stock"""
+    RequireRole(["cliente", "admin"])
     return order_service.create_order(db, user_id, order_data)
 
 
 @router.get("/", response_model=List[OrderListResponse])
 def list_orders(
     user_id: Optional[int] = Query(None),
+    current_role: str = Query(...),
     status: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
     """Lists orders with optional filters"""
+    RequireRole(["cliente", "admin"])
     return order_service.list_orders(db, user_id, status, skip, limit)
 
 
@@ -61,6 +72,8 @@ def list_orders(
 @router.get("/staff", response_model=List[OrderStaffResponse])
 def list_staff_orders(
     service: str = Query(..., description="Service: cafeteria, restaurante, reposteria"),
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
@@ -68,6 +81,7 @@ def list_staff_orders(
     db: Session = Depends(get_db)
 ):
     """Lists orders filtered by service for staff"""
+    RequireRole(["dependiente", "admin"])
     return order_staff_service.listar_pedidos_staff(db, service, status, search, skip, limit)
 
 
@@ -75,9 +89,12 @@ def list_staff_orders(
 def get_staff_order_detail(
     order_id: int,
     service: str = Query(..., description="Service of the staff member"),
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """Gets full order detail for staff"""
+    RequireRole(["dependiente", "admin"])
     return order_staff_service.obtener_pedido_staff_detalle(db, order_id, service)
 
 
@@ -86,9 +103,12 @@ def update_staff_order_status(
     order_id: int,
     status_data: OrderStatusUpdate,
     service: str = Query(..., description="Service of the staff member"),
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """Updates order status with staff-restricted transitions"""
+    RequireRole(["dependiente", "admin"])
     return order_staff_service.actualizar_estado_pedido_staff(
         db, order_id, status_data.order_status, service
     )
@@ -99,8 +119,14 @@ def update_staff_order_status(
 # ============================================================================
 
 @router.get("/{order_id}", response_model=OrderResponse)
-def get_order_by_id(order_id: int, db: Session = Depends(get_db)):
+def get_order_by_id(
+    order_id: int,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
     """Gets all details of a specific order"""
+    RequireRole(["cliente", "admin"])
     return order_service.get_order_by_id(db, order_id)
 
 
@@ -108,9 +134,12 @@ def get_order_by_id(order_id: int, db: Session = Depends(get_db)):
 def update_order_status(
     order_id: int,
     status_data: OrderStatusUpdate,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """Changes order status"""
+    RequireRole(["cliente", "admin"])
     return order_service.update_order_status(db, order_id, status_data.order_status)
 
 
@@ -118,7 +147,9 @@ def update_order_status(
 def cancel_order(
     order_id: int,
     user_id: int = Query(..., description="ID of the user who owns the order"),
+    current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
     """Cancels an order and restores ingredient stock"""
+    RequireRole(["cliente", "admin"])
     return order_service.cancel_order(db, order_id, user_id)

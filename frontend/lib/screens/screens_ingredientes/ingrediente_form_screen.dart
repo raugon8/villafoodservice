@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/ingrediente_service.dart';
 import '../../models/ingrediente.dart';
+import '../../providers/auth_provider.dart';
 
 class ingrediente_form_screen extends StatefulWidget {
   final ingrediente? ingrediente_editar;
@@ -51,6 +53,7 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
 
     setState(() => _is_loading = true);
 
+    final auth = Provider.of<auth_provider>(context, listen: false);
     final datos = {
       'ingrediente_nombre': nombre_controller.text.trim(),
       'ingrediente_stockActual': double.parse(stock_actual_controller.text.trim()),
@@ -64,9 +67,15 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
         await service_instancia.update_ingrediente(
           widget.ingrediente_editar!.ingrediente_id,
           datos,
+          user_id: auth.user_id ?? 1,
+          current_role: auth.current_role ?? 'admin',
         );
       } else {
-        await service_instancia.create_ingrediente(datos);
+        await service_instancia.create_ingrediente(
+          datos,
+          user_id: auth.user_id ?? 1,
+          current_role: auth.current_role ?? 'admin',
+        );
       }
 
       if (mounted) {

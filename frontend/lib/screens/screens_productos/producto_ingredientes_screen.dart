@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/producto_ingrediente.dart';
 import '../../models/ingrediente.dart';
 import '../../services/producto_service.dart';
 import '../../services/ingrediente_service.dart';
+import '../../providers/auth_provider.dart';
 
 class producto_ingredientes_screen extends StatefulWidget {
   final int producto_id;
@@ -36,12 +38,16 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
   }
 
   Future<void> _mostrar_dialogo_agregar() async {
+    final auth = Provider.of<auth_provider>(context, listen: false);
     List<ingrediente> disponibles = [];
     ingrediente? seleccionado;
     final cantidad_ctrl = TextEditingController(text: '1.0');
 
     try {
-      disponibles = await _ing_service.get_ingredientes();
+      disponibles = await _ing_service.get_ingredientes(
+        user_id: auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'admin',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

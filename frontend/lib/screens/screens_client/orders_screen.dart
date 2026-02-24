@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../services/order_service.dart';
 import '../../../models/order_model.dart';
+import '../../../providers/auth_provider.dart';
 
 class orders_screen extends StatefulWidget {
   const orders_screen({super.key});
@@ -13,10 +15,15 @@ class _orders_screen_state extends State<orders_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<auth_provider>(context, listen: false);
+
     return Scaffold(
       appBar: AppBar(title: const Text('mis pedidos')),
       body: FutureBuilder<List<order>>(
-        future: service_instancia.list_orders(1),
+        future: service_instancia.list_orders(
+          auth.user_id ?? 1,
+          current_role: auth.current_role ?? 'cliente',
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

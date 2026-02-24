@@ -5,23 +5,19 @@ import '../models/order_model.dart';
 class order_service {
   static const String base_url = 'http://localhost:8000';
 
-  // validates cart availability against the backend
-  Future<bool> validate_cart(List<cart_item> items) async {
+  Future<bool> validate_cart(List<cart_item> items, {required int user_id, required String current_role}) async {
     final response = await http.post(
-      Uri.parse('$base_url/pedidos/validar-carrito'),
+      Uri.parse('$base_url/pedidos/validar-carrito?user_id=$user_id&current_role=$current_role'),
       headers: {'content-type': 'application/json'},
-      body: jsonEncode({
-        'items': items.map((i) => i.to_json()).toList()
-      }),
+      body: jsonEncode({'items': items.map((i) => i.to_json()).toList()}),
     );
     if (response.statusCode == 200) return true;
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error validating cart');
   }
 
-  // creates a confirmed order and updates stock
-  Future<order> create_order(List<cart_item> items, String notas, int user_id) async {
+  Future<order> create_order(List<cart_item> items, String notas, int user_id, {required String current_role}) async {
     final response = await http.post(
-      Uri.parse('$base_url/pedidos/crear?user_id=$user_id'),
+      Uri.parse('$base_url/pedidos/crear?user_id=$user_id&current_role=$current_role'),
       headers: {'content-type': 'application/json'},
       body: jsonEncode({
         'items': items.map((i) => i.to_json()).toList(),
@@ -32,10 +28,9 @@ class order_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error creating order');
   }
 
-  // lists orders for a specific user
-  Future<List<order>> list_orders(int user_id) async {
+  Future<List<order>> list_orders(int user_id, {required String current_role}) async {
     final response = await http.get(
-      Uri.parse('$base_url/pedidos/?user_id=$user_id'),
+      Uri.parse('$base_url/pedidos/?user_id=$user_id&current_role=$current_role'),
     );
     if (response.statusCode == 200) {
       List data = jsonDecode(response.body);
