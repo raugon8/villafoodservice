@@ -6,6 +6,7 @@ from backend.controllers import producto_controller
 from backend.controllers import order_controller
 from backend.controllers import user_controller
 from backend.controllers import dashboard_controller
+from backend.controllers import category_controller
 from backend.database_manager.database import init_db, migrate_db
 
 app = FastAPI()
@@ -27,3 +28,4 @@ app.include_router(producto_controller.router)
 app.include_router(order_controller.router)
 app.include_router(user_controller.router)
 app.include_router(dashboard_controller.router)
+app.include_router(category_controller.router)
