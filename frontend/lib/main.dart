@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'theme/app_theme.dart';
 import 'screens/screens_auth/login_screen.dart';
 import 'screens/screens_home/home_screen.dart';
 import 'screens/screens_auth/role_selector_screen.dart';
@@ -26,10 +27,7 @@ class mi_app extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'villafood service',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
-        useMaterial3: true,
-      ),
+      theme: app_theme.light_theme,
       initialRoute: '/login',
       routes: {
         '/login':           (context) => const login_screen(),
