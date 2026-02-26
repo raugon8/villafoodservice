@@ -6,8 +6,10 @@ import '../screens_ingredientes/ingredientes_list_screen.dart';
 import '../screens_productos/productos_list_screen.dart';
 import '../screens_client/cart_screen.dart';
 import '../screens_client/orders_screen.dart';
+import '../screens_client/catalog_screen.dart';
 import '../screens_staff/order_list_screen.dart';
 import '../admin/dashboard_screen.dart';
+import '../admin/category_management_screen.dart';
 import '../admin/user_management_screen.dart';
 
 class home_screen extends StatelessWidget {
@@ -41,7 +43,6 @@ class home_screen extends StatelessWidget {
           ],
         ),
         actions: [
-          // Botón cambiar rol - solo si tiene múltiples roles
           if (auth.available_roles.length > 1)
             IconButton(
               icon: const Icon(Icons.swap_horiz),
@@ -51,7 +52,6 @@ class home_screen extends StatelessWidget {
                 MaterialPageRoute(builder: (c) => const role_selector_screen())
               ),
             ),
-          // Logout
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
@@ -66,18 +66,20 @@ class home_screen extends StatelessWidget {
         crossAxisCount: 2,
         padding: const EdgeInsets.all(20),
         children: [
-          if (rol == 'admin')
+          if (rol == 'admin') ...[
             _crear_boton(context, Icons.analytics, 'dashboard', const dashboard_screen()),
-          if (rol == 'admin')
             _crear_boton(context, Icons.people, 'usuarios', const user_management_screen()),
+            _crear_boton(context, Icons.category, 'categorías', const category_management_screen()),
+          ],
           if (rol == 'admin' || rol == 'almacen')
             _crear_boton(context, Icons.kitchen, 'ingredientes', const ingredientes_list_screen()),
           if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
             _crear_boton(context, Icons.restaurant_menu, 'productos', const productos_list_screen()),
+          _crear_boton(context, Icons.search, 'catálogo', const catalog_screen()),
           _crear_boton(context, Icons.shopping_cart, 'carrito', const cart_screen()),
           _crear_boton(context, Icons.history, 'mis pedidos', const orders_screen()),
           if (rol == 'admin' || rol == 'dependiente')
-            _crear_boton(context, Icons.assignment, 'gestion staff', const order_list_screen()),
+            _crear_boton(context, Icons.assignment, 'gestión staff', const order_list_screen()),
         ],
       ),
     );
@@ -87,9 +89,14 @@ class home_screen extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => pantalla)),
       child: Card(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [Icon(icono, size: 40), Text(texto)],
+          children: [
+            Icon(icono, size: 40, color: Theme.of(context).primaryColor),
+            const SizedBox(height: 8),
+            Text(texto, style: const TextStyle(fontWeight: FontWeight.bold))
+          ],
         ),
       ),
     );

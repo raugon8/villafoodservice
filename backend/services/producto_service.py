@@ -393,3 +393,49 @@ def remove_ingrediente_from_producto(db: Session, producto_id: int, ingrediente_
     db.commit()
     
     return True
+
+# ============================================================================
+# FUNCIÓN 10: Actualizar categorías de un producto
+# ============================================================================
+def update_product_categories(db: Session, producto_id: int, category_ids: list) -> dict:
+    """Asigna o reemplaza las categorías de un producto."""
+    from backend.object_class.category import CategoryProductModel, CategoryModel
+
+    producto = db.query(Producto).filter(
+        Producto.producto_id == producto_id,
+        Producto.producto_activo == True
+    ).first()
+
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    # Eliminar asociaciones actuales
+    db.query(CategoryProductModel).filter(
+        CategoryProductModel.product_id == producto_id
+    ).delete()
+
+    # Crear nuevas asociaciones
+    for cat_id in category_ids:
+        categoria = db.query(CategoryModel).filter(
+            CategoryModel.category_id == cat_id,
+            CategoryModel.category_active == True
+        ).first()
+        if not categoria:
+            raise HTTPException(status_code=404, detail=f"Categoría {cat_id} no encontrada o inactiva")
+
+        nueva = CategoryProductModel(category_id=cat_id, product_id=producto_id)
+        db.add(nueva)
+
+    db.commit()
+
+    unidades = disponibilidad_service.calcular_unidades_disponibles(db, producto_id)
+    return {
+        "producto_id": producto.producto_id,
+        "producto_nombre": producto.producto_nombre,
+        "producto_descripcion": producto.producto_descripcion,
+        "producto_precioUnitario": producto.producto_precioUnitario,
+        "producto_categoria": producto.producto_categoria,
+        "producto_activo": producto.producto_activo,
+        "unidades_disponibles": unidades,
+        "disponible": unidades > 0
+    }

@@ -54,7 +54,38 @@ class producto_service {
     }
   }
 
-  // ─── Ingredientes del producto ───────────────────────────────────────────
+  // Búsqueda avanzada (Tarea 9)
+  Future<List<producto>> search_products({
+    required int user_id,
+    required String current_role,
+    String? query,
+    String? service,
+    int? category_id,
+    bool available_only = false,
+    double? min_price,
+    double? max_price,
+    bool active_only = true,
+    String sort_by = 'name_asc',
+    int skip = 0,
+    int limit = 20,
+  }) async {
+    String url = '$base_url/productos/search?current_role=$current_role&sort_by=$sort_by&skip=$skip&limit=$limit&active_only=$active_only&available_only=$available_only';
+    if (query != null && query.isNotEmpty) url += '&search_query=$query';
+    if (service != null) url += '&service=$service';
+    if (category_id != null) url += '&category_id=$category_id';
+    if (min_price != null) url += '&min_price=$min_price';
+    if (max_price != null) url += '&max_price=$max_price';
+
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List products = data['products'];
+      return products.map((p) => producto.from_json(p)).toList();
+    }
+    throw Exception('Error en búsqueda de productos');
+  }
+
+  // --- Ingredientes del producto ---
 
   Future<List<producto_ingrediente>> get_ingredientes_producto(int producto_id) async {
     final response = await http.get(Uri.parse('$base_url/productos/$producto_id'));

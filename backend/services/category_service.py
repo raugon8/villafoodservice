@@ -1,0 +1,74 @@
+"""
+Category Service
+CRUD de categorías de productos
+backend/services/category_service.py
+"""
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
+from backend.object_class.category import CategoryModel, CategoryCreate, CategoryUpdate, CategoryResponse
+
+
+def list_categories(db: Session, active_only: bool = True):
+    query = db.query(CategoryModel)
+    if active_only:
+        query = query.filter(CategoryModel.category_active == True)
+    return query.order_by(CategoryModel.category_name.asc()).all()
+
+
+def get_category_by_id(db: Session, category_id: int):
+    category = db.query(CategoryModel).filter(CategoryModel.category_id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return category
+
+
+def create_category(db: Session, category_data: CategoryCreate):
+    existe = db.query(CategoryModel).filter(
+        CategoryModel.category_name == category_data.category_name
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Ya existe una categoría con ese nombre")
+
+    nueva = CategoryModel(
+        category_name=category_data.category_name,
+        category_description=category_data.category_description,
+        category_active=True
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+def update_category(db: Session, category_id: int, category_data: CategoryUpdate):
+    category = db.query(CategoryModel).filter(CategoryModel.category_id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
+    if category_data.category_name is not None:
+        existe = db.query(CategoryModel).filter(
+            CategoryModel.category_name == category_data.category_name,
+            CategoryModel.category_id != category_id
+        ).first()
+        if existe:
+            raise HTTPException(status_code=400, detail="Ya existe una categoría con ese nombre")
+        category.category_name = category_data.category_name
+
+    if category_data.category_description is not None:
+        category.category_description = category_data.category_description
+
+    if category_data.category_active is not None:
+        category.category_active = category_data.category_active
+
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def deactivate_category(db: Session, category_id: int):
+    category = db.query(CategoryModel).filter(CategoryModel.category_id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    category.category_active = False
+    db.commit()

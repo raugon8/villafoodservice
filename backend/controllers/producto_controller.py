@@ -9,16 +9,18 @@ from decimal import Decimal
 
 # Imports de schemas
 from backend.object_class.products import (
-    ProductoCreate, 
-    ProductoUpdate, 
+    ProductoCreate,
+    ProductoUpdate,
     ProductoResponse,
     ProductoDetalleResponse,
     ProductoIngredienteBase,
-    DisponibilidadDetalleResponse
+    DisponibilidadDetalleResponse,
+    ProductSearchFilters,
+    ProductSearchResponse
 )
 
 # Imports de servicios
-from backend.services import producto_service, disponibilidad_service
+from backend.services import producto_service, disponibilidad_service, product_search_service
 
 # Import de dependencia de BD
 from backend.database_manager.database import get_db
@@ -41,14 +43,7 @@ def listar_productos(
     categoria: Optional[str] = Query(None, description="Filtrar por categoría"),
     db: Session = Depends(get_db)
 ):
-    """
-    Lista todos los productos activos con su disponibilidad.
-    
-    Query params:
-    - skip: paginación (default 0)
-    - limit: límite de resultados (default 100, max 100)
-    - categoria: filtrar por categoría (Cafetería/Restaurante/Repostería)
-    """
+    """Lista todos los productos activos con su disponibilidad."""
     return producto_service.get_productos(db, skip, limit, categoria)
 
 
@@ -57,13 +52,20 @@ def listar_productos_disponibles(
     categoria: Optional[str] = Query(None, description="Filtrar por categoría"),
     db: Session = Depends(get_db)
 ):
-    """
-    Lista solo productos que tienen stock disponible (unidades_disponibles > 0).
-    
-    Query params:
-    - categoria: filtrar por categoría (opcional)
-    """
+    """Lista solo productos que tienen stock disponible."""
     return disponibilidad_service.get_productos_disponibles(db, categoria)
+
+
+@router.get("/search", response_model=ProductSearchResponse)
+def buscar_productos(
+    filters: ProductSearchFilters = Depends(),
+    current_role: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Búsqueda avanzada con filtros, texto libre e ingredientes."""
+    if current_role == "cliente" or current_role is None:
+        filters.active_only = True
+    return product_search_service.search_products(db, filters)
 
 
 @router.get("/{producto_id}", response_model=ProductoDetalleResponse)
@@ -71,23 +73,10 @@ def obtener_producto(
     producto_id: int,
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene el detalle completo de un producto con información de ingredientes.
-    
-    Incluye:
-    - Datos del producto
-    - Lista de ingredientes con cantidades
-    - Disponibilidad calculada
-    - Ingrediente limitante
-    """
+    """Obtiene el detalle completo de un producto con información de ingredientes."""
     producto = producto_service.get_producto_con_ingredientes(db, producto_id)
-    
     if not producto:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Producto no encontrado"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
     return producto
 
 
@@ -96,22 +85,10 @@ def obtener_disponibilidad_detallada(
     producto_id: int,
     db: Session = Depends(get_db)
 ):
-    """
-    Obtiene análisis detallado de disponibilidad de un producto.
-    
-    Muestra:
-    - Unidades disponibles totales
-    - Análisis por ingrediente (stock, unidades posibles)
-    - Cuál ingrediente es el limitante
-    """
+    """Obtiene análisis detallado de disponibilidad de un producto."""
     detalle = disponibilidad_service.get_detalle_disponibilidad(db, producto_id)
-    
     if not detalle:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Producto no encontrado"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
     return detalle
 
 
@@ -126,16 +103,7 @@ def crear_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Crea un nuevo producto.
-    
-    Validaciones:
-    - Nombre único (no puede existir otro con el mismo nombre)
-    - Precio > 0
-    - Categoría válida (Cafetería/Restaurante/Repostería)
-    
-    Nota: El producto se crea sin ingredientes. Usar endpoints de ingredientes para añadirlos.
-    """
+    """Crea un nuevo producto."""
     RequireRole(["admin", "almacen", "dependiente"])
     producto_data = producto_in.dict()
     return producto_service.create_producto(db, producto_data)
@@ -149,33 +117,14 @@ def actualizar_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Actualiza un producto existente.
-    
-    Solo se actualizan los campos proporcionados (todos son opcionales).
-    
-    Validaciones:
-    - Si se cambia nombre, debe ser único
-    - Si se cambia precio, debe ser > 0
-    - Si se cambia categoría, debe ser válida
-    """
+    """Actualiza un producto existente."""
     RequireRole(["admin", "almacen", "dependiente"])
     producto_data = {k: v for k, v in producto_in.dict().items() if v is not None}
-    
     if not producto_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No se proporcionaron campos para actualizar"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se proporcionaron campos para actualizar")
     resultado = producto_service.update_producto(db, producto_id, producto_data)
-    
     if not resultado:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Producto no encontrado"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
     return resultado
 
 
@@ -186,24 +135,24 @@ def eliminar_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Elimina un producto (soft delete).
-    
-    Validaciones:
-    - No se puede eliminar si tiene pedidos activos
-    
-    Nota: No elimina físicamente, solo marca como inactivo (producto_activo = False)
-    """
+    """Elimina un producto (soft delete)."""
     RequireRole(["admin", "almacen", "dependiente"])
-    eliminado = producto_service.delete_producto(db, producto_id)
-    
-    if not eliminado:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Producto no encontrado"
-        )
-    
+    if not producto_service.delete_producto(db, producto_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
     return None
+
+
+@router.patch("/{producto_id}/categories")
+def actualizar_categorias_producto(
+    producto_id: int,
+    category_ids: List[int],
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Asigna o actualiza las categorías de un producto."""
+    RequireRole(["admin", "almacen", "dependiente"])
+    return producto_service.update_product_categories(db, producto_id, category_ids)
 
 
 # ============================================================================
@@ -218,27 +167,10 @@ def añadir_ingrediente_a_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Añade un ingrediente a un producto con su cantidad necesaria.
-    
-    Validaciones:
-    - Producto debe existir y estar activo
-    - Ingrediente debe existir y estar activo
-    - Cantidad debe ser > 0
-    - No puede añadir el mismo ingrediente dos veces
-    
-    Body:
-    {
-        "ingrediente_id": 1,
-        "cantidad_necesaria": 0.2
-    }
-    """
+    """Añade un ingrediente a un producto con su cantidad necesaria."""
     RequireRole(["admin", "almacen", "dependiente"])
     return producto_service.add_ingrediente_to_producto(
-        db,
-        producto_id,
-        ingrediente_in.ingrediente_id,
-        ingrediente_in.cantidad_necesaria
+        db, producto_id, ingrediente_in.ingrediente_id, ingrediente_in.cantidad_necesaria
     )
 
 
@@ -251,38 +183,13 @@ def actualizar_cantidad_ingrediente(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Actualiza la cantidad necesaria de un ingrediente en un producto.
-    
-    Validaciones:
-    - La relación producto-ingrediente debe existir
-    - Cantidad debe ser > 0
-    
-    Body:
-    {
-        "cantidad": 0.5
-    }
-    """
+    """Actualiza la cantidad necesaria de un ingrediente en un producto."""
     RequireRole(["admin", "almacen", "dependiente"])
     if cantidad <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La cantidad debe ser mayor a 0"
-        )
-    
-    resultado = producto_service.update_cantidad_ingrediente(
-        db,
-        producto_id,
-        ingrediente_id,
-        cantidad
-    )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La cantidad debe ser mayor a 0")
+    resultado = producto_service.update_cantidad_ingrediente(db, producto_id, ingrediente_id, cantidad)
     if not resultado:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Relación producto-ingrediente no encontrada"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relación producto-ingrediente no encontrada")
     return resultado
 
 
@@ -294,24 +201,8 @@ def quitar_ingrediente_de_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Elimina un ingrediente de un producto.
-    
-    Validaciones:
-    - La relación debe existir
-    - Un producto debe tener al menos 1 ingrediente (no se puede eliminar el último)
-    """
+    """Elimina un ingrediente de un producto."""
     RequireRole(["admin", "almacen", "dependiente"])
-    eliminado = producto_service.remove_ingrediente_from_producto(
-        db,
-        producto_id,
-        ingrediente_id
-    )
-    
-    if not eliminado:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Relación producto-ingrediente no encontrada"
-        )
-    
+    if not producto_service.remove_ingrediente_from_producto(db, producto_id, ingrediente_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relación producto-ingrediente no encontrada")
     return None
