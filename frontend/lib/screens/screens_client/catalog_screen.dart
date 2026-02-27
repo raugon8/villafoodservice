@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/producto_service.dart';
 import '../../models/producto.dart';
+import '../../models/cart_manager.dart';
 
 class catalog_screen extends StatefulWidget {
   const catalog_screen({super.key});
@@ -22,7 +23,6 @@ class _catalog_screen_state extends State<catalog_screen> {
   String _categoria_seleccionada = 'Todas';
   String _sort_by = 'name_asc';
 
-  // Debounce
   DateTime? _last_search;
 
   final Map<String, String> _sort_options = {
@@ -181,7 +181,16 @@ class _catalog_screen_state extends State<catalog_screen> {
         trailing: p.disponible
           ? IconButton(
               icon: const Icon(Icons.add_shopping_cart, color: Colors.orange),
-              onPressed: () {}, // TODO: añadir al carrito
+              onPressed: () {
+                cart_manager.add_item(p.producto_id, p.producto_nombre, p.producto_precio_unitario);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${p.producto_nombre} añadido al carrito'),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
             )
           : null,
       ),

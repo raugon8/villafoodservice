@@ -16,7 +16,7 @@ class _order_list_screen_state extends State<order_list_screen> {
   final service_instancia = order_staff_service();
   final search_controller = TextEditingController();
 
-  final String current_service = 'restaurante';
+  String current_service = 'restaurante';
 
   List<order_staff_item> orders = [];
   String? selected_status;
@@ -25,6 +25,7 @@ class _order_list_screen_state extends State<order_list_screen> {
   Timer? refresh_timer;
 
   final List<String> status_options = ['Todos', 'pendiente', 'en_preparacion', 'listo'];
+  final List<String> service_options = ['cafeteria', 'restaurante', 'reposteria'];
 
   @override
   void initState() {
@@ -63,17 +64,31 @@ class _order_list_screen_state extends State<order_list_screen> {
       appBar: AppBar(
         title: Text('pedidos - $current_service'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load_orders,
-            tooltip: 'Actualizar',
-          )
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load_orders, tooltip: 'Actualizar')
         ],
       ),
       body: Column(
         children: [
+          // Selector de servicio
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: DropdownButtonFormField<String>(
+              value: current_service,
+              decoration: InputDecoration(
+                labelText: 'Servicio',
+                prefixIcon: const Icon(Icons.store),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: service_options.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (v) {
+                setState(() { current_service = v!; });
+                _load_orders();
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
             child: TextField(
               controller: search_controller,
               decoration: InputDecoration(
@@ -90,6 +105,7 @@ class _order_list_screen_state extends State<order_list_screen> {
             child: DropdownButtonFormField<String>(
               value: selected_status ?? 'Todos',
               decoration: InputDecoration(
+                labelText: 'Estado',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
@@ -118,10 +134,8 @@ class _order_list_screen_state extends State<order_list_screen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: color,
-                              child: Text(
-                                '#${item.order_id}',
-                                style: const TextStyle(color: Colors.white, fontSize: 11),
-                              ),
+                              child: Text('#${item.order_id}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11)),
                             ),
                             title: Row(
                               children: [
@@ -143,7 +157,8 @@ class _order_list_screen_state extends State<order_list_screen> {
                               '${item.order_status} · ${item.items_count} productos · €${item.order_total.toStringAsFixed(2)}'
                             ),
                             trailing: Chip(
-                              label: Text(item.order_status, style: const TextStyle(color: Colors.white, fontSize: 11)),
+                              label: Text(item.order_status,
+                                style: const TextStyle(color: Colors.white, fontSize: 11)),
                               backgroundColor: color,
                             ),
                             onTap: () => Navigator.push(
