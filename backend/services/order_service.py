@@ -15,6 +15,11 @@ from backend.models.user_model import User
 from backend.services.disponibilidad_service import calcular_unidades_disponibles
 from backend.object_class.orders import VALID_TRANSITIONS, VALID_STATES
 
+SERVICE_MAP = {
+    'Cafetería': 'cafeteria',
+    'Restaurante': 'restaurante',
+    'Repostería': 'reposteria'
+}
 
 # ============================================================================
 # FUNCTION 1: Validate cart
@@ -53,7 +58,8 @@ def validate_cart(db: Session, items: list) -> List[dict]:
             "quantity":        item.quantity,
             "subtotal":        subtotal,
             "available":       available,
-            "stock_available": stock_available
+            "stock_available": stock_available,
+            "product_categoria": product.producto_categoria
         })
 
     if errors:
@@ -78,11 +84,16 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
         validated_items = validate_cart(db, order_data.items)
         total = sum(item["subtotal"] for item in validated_items)
 
+        # Determinar order_service desde la categoría del primer producto
+        first_categoria = validated_items[0]["product_categoria"] if validated_items else None
+        derived_service = SERVICE_MAP.get(first_categoria, 'restaurante')
+
         new_order = OrderModel(
             user_id=user_id,
             order_status="pendiente",
             order_total=total,
-            order_notes=order_data.order_notes
+            order_notes=order_data.order_notes,
+            order_service=derived_service
         )
         db.add(new_order)
         db.flush()
@@ -245,7 +256,6 @@ def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
 # ============================================================================
 
 def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
-    """Deducts ingredient stock when an order is confirmed."""
     relations = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == product_id
     ).all()
@@ -267,7 +277,6 @@ def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int
 
 
 def _restore_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
-    """Restores ingredient stock when an order is cancelled."""
     relations = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == product_id
     ).all()
@@ -283,7 +292,6 @@ def _restore_ingredient_stock(db: Session, product_id: int, quantity_ordered: in
 
 
 def _build_order_response(db: Session, order: OrderModel) -> dict:
-    """Builds the full response dict for an order including its details."""
     details = db.query(OrderDetailModel).filter(
         OrderDetailModel.order_id == order.order_id
     ).all()
