@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/producto.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/producto_service.dart';
 
 class producto_form_screen extends StatefulWidget {
@@ -49,6 +51,10 @@ class _producto_form_screen_state extends State<producto_form_screen> {
 
     setState(() => _is_loading = true);
 
+    final auth = Provider.of<auth_provider>(context, listen: false);
+    final user_id = auth.user_id!;
+    final current_role = auth.current_role!;
+
     try {
       final datos = {
         'producto_nombre': _nombre_ctrl.text.trim(),
@@ -58,9 +64,18 @@ class _producto_form_screen_state extends State<producto_form_screen> {
       };
 
       if (_es_edicion) {
-        await _service.update_producto(widget.producto_editar!.producto_id, datos);
+        await _service.update_producto(
+          widget.producto_editar!.producto_id,
+          datos,
+          user_id: user_id,
+          current_role: current_role,
+        );
       } else {
-        await _service.create_producto(datos);
+        await _service.create_producto(
+          datos,
+          user_id: user_id,
+          current_role: current_role,
+        );
       }
 
       if (mounted) {

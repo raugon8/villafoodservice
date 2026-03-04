@@ -39,14 +39,17 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
 
   Future<void> _mostrar_dialogo_agregar() async {
     final auth = Provider.of<auth_provider>(context, listen: false);
+    final user_id = auth.user_id!;
+    final current_role = auth.current_role!;
+
     List<ingrediente> disponibles = [];
     ingrediente? seleccionado;
     final cantidad_ctrl = TextEditingController(text: '1.0');
 
     try {
       disponibles = await _ing_service.get_ingredientes(
-        user_id: auth.user_id ?? 1,
-        current_role: auth.current_role ?? 'admin',
+        user_id: user_id,
+        current_role: current_role,
       );
     } catch (e) {
       if (mounted) {
@@ -115,6 +118,8 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
                               widget.producto_id,
                               seleccionado!.ingrediente_id,
                               cantidad,
+                              user_id: user_id,
+                              current_role: current_role,
                             );
                             _cargar();
                             if (mounted) {
@@ -166,8 +171,14 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
     );
 
     if (confirmado == true) {
+      final auth = Provider.of<auth_provider>(context, listen: false);
       try {
-        await _prod_service.quitar_ingrediente(widget.producto_id, item.ingrediente_id);
+        await _prod_service.quitar_ingrediente(
+          widget.producto_id,
+          item.ingrediente_id,
+          user_id: auth.user_id!,
+          current_role: auth.current_role!,
+        );
         _cargar();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

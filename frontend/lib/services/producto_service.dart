@@ -23,9 +23,17 @@ class producto_service {
     throw Exception('Error al obtener producto');
   }
 
-  Future<producto> create_producto(Map<String, dynamic> data) async {
+  Future<producto> create_producto(
+    Map<String, dynamic> data, {
+    required int user_id,
+    required String current_role,
+  }) async {
+    final uri = Uri.parse('$base_url/productos/').replace(queryParameters: {
+      'user_id': user_id.toString(),
+      'current_role': current_role,
+    });
     final response = await http.post(
-      Uri.parse('$base_url/productos/'),
+      uri,
       headers: {'content-type': 'application/json'},
       body: jsonEncode(data),
     );
@@ -35,9 +43,18 @@ class producto_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al crear producto');
   }
 
-  Future<producto> update_producto(int id, Map<String, dynamic> data) async {
+  Future<producto> update_producto(
+    int id,
+    Map<String, dynamic> data, {
+    required int user_id,
+    required String current_role,
+  }) async {
+    final uri = Uri.parse('$base_url/productos/$id').replace(queryParameters: {
+      'user_id': user_id.toString(),
+      'current_role': current_role,
+    });
     final response = await http.put(
-      Uri.parse('$base_url/productos/$id'),
+      uri,
       headers: {'content-type': 'application/json'},
       body: jsonEncode(data),
     );
@@ -47,8 +64,16 @@ class producto_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al actualizar producto');
   }
 
-  Future<void> delete_producto(int id) async {
-    final response = await http.delete(Uri.parse('$base_url/productos/$id'));
+  Future<void> delete_producto(
+    int id, {
+    required int user_id,
+    required String current_role,
+  }) async {
+    final uri = Uri.parse('$base_url/productos/$id').replace(queryParameters: {
+      'user_id': user_id.toString(),
+      'current_role': current_role,
+    });
+    final response = await http.delete(uri);
     if (response.statusCode != 204 && response.statusCode != 200) {
       throw Exception('Error al eliminar producto');
     }
@@ -69,7 +94,8 @@ class producto_service {
     int skip = 0,
     int limit = 20,
   }) async {
-    String url = '$base_url/productos/search?current_role=$current_role&sort_by=$sort_by&skip=$skip&limit=$limit&active_only=$active_only&available_only=$available_only';
+    String url =
+        '$base_url/productos/search?current_role=$current_role&sort_by=$sort_by&skip=$skip&limit=$limit&active_only=$active_only&available_only=$available_only';
     if (query != null && query.isNotEmpty) url += '&search_query=$query';
     if (service != null) url += '&service=$service';
     if (category_id != null) url += '&category_id=$category_id';
@@ -97,9 +123,20 @@ class producto_service {
     throw Exception('Error al obtener ingredientes del producto');
   }
 
-  Future<void> agregar_ingrediente(int producto_id, int ingrediente_id, double cantidad) async {
+  Future<void> agregar_ingrediente(
+    int producto_id,
+    int ingrediente_id,
+    double cantidad, {
+    required int user_id,
+    required String current_role,
+  }) async {
+    final uri = Uri.parse('$base_url/productos/$producto_id/ingredientes')
+        .replace(queryParameters: {
+      'user_id': user_id.toString(),
+      'current_role': current_role,
+    });
     final response = await http.post(
-      Uri.parse('$base_url/productos/$producto_id/ingredientes'),
+      uri,
       headers: {'content-type': 'application/json'},
       body: jsonEncode({
         'ingrediente_id': ingrediente_id,
@@ -111,10 +148,19 @@ class producto_service {
     }
   }
 
-  Future<void> quitar_ingrediente(int producto_id, int ingrediente_id) async {
-    final response = await http.delete(
-      Uri.parse('$base_url/productos/$producto_id/ingredientes/$ingrediente_id'),
-    );
+  Future<void> quitar_ingrediente(
+    int producto_id,
+    int ingrediente_id, {
+    required int user_id,
+    required String current_role,
+  }) async {
+    final uri = Uri.parse(
+            '$base_url/productos/$producto_id/ingredientes/$ingrediente_id')
+        .replace(queryParameters: {
+      'user_id': user_id.toString(),
+      'current_role': current_role,
+    });
+    final response = await http.delete(uri);
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al quitar ingrediente');
     }
