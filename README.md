@@ -43,3 +43,16 @@ Al arrancar por primera vez se insertan automáticamente:
 - 8 categorías distribuidas entre los servicios
 - 8 ingredientes con stock inicial
 - 12 productos listos para pedir
+
+## Build de Flutter Web
+
+Para compilar la app web apuntando al backend de producción:
+
+```bash
+flutter build web --release \
+  --dart-define=API_URL=https://<proyecto>.railway.app \
+  --dart-define=SUPABASE_URL=https://tvflsjhtybzwbqxciciv.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<publishable_key>
+```
+
+> Sustituir `<proyecto>` por la URL del backend en Railway y `<publishable_key>` por la clave publicable de Supabase. Ninguna de estas claves debe subirse al repositorio.
