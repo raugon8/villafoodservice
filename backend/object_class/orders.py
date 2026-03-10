@@ -22,13 +22,12 @@ VALID_TRANSITIONS = {
     'cancelado':      []
 }
 
-# Staff-only transitions (more restricted)
+# Staff-only transitions (más restringido, pero el dependiente puede marcar como entregado desde el escáner QR)
 VALID_STAFF_TRANSITIONS = {
     'pendiente':      ['en_preparacion'],
     'en_preparacion': ['listo'],
-    'listo':          [],
+    'listo':          ['entregado'],
 }
-
 
 # ============================================================================
 # PYDANTIC SCHEMAS - Input
@@ -39,7 +38,6 @@ class CartDetailBase(BaseModel):
     product_id: int = Field(..., gt=0)
     quantity: int = Field(..., gt=0, le=50, description="Between 1 and 50 units")
 
-
 class CartCreate(BaseModel):
     """Schema to validate a full cart"""
     items: List[CartDetailBase]
@@ -49,7 +47,6 @@ class CartCreate(BaseModel):
         if not v:
             raise ValueError("Cart cannot be empty")
         return v
-
 
 class OrderCreate(BaseModel):
     """Schema to create a new order"""
@@ -63,7 +60,6 @@ class OrderCreate(BaseModel):
             raise ValueError("Order must have at least one product")
         return v
 
-
 class OrderStatusUpdate(BaseModel):
     """Schema to update order status"""
     order_status: str
@@ -73,7 +69,6 @@ class OrderStatusUpdate(BaseModel):
         if v not in VALID_STATES:
             raise ValueError(f"Invalid status. Must be one of: {VALID_STATES}")
         return v
-
 
 # ============================================================================
 # PYDANTIC SCHEMAS - Output
@@ -91,7 +86,6 @@ class ValidatedCartItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class OrderDetailResponse(BaseModel):
     detail_id: int
     product_id: int
@@ -103,10 +97,10 @@ class OrderDetailResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class OrderResponse(BaseModel):
     order_id: int
     user_id: int
+    user_name: Optional[str] = None
     order_date_time: datetime
     order_status: str
     order_total: Decimal
@@ -117,7 +111,6 @@ class OrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 class OrderListResponse(BaseModel):
     order_id: int
@@ -130,7 +123,6 @@ class OrderListResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 class OrderStaffResponse(BaseModel):
     """Order response for staff/dependiente view"""

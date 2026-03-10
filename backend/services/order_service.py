@@ -295,9 +295,13 @@ def _build_order_response(db: Session, order: OrderModel) -> dict:
             "detail_subtotal":   d.detail_subtotal
         })
 
+    # Obtener el nombre del cliente para mostrarlo en el escáner QR
+    user = db.query(User).filter(User.usuario_ID == order.user_id).first()
+
     return {
         "order_id":        order.order_id,
         "user_id":         order.user_id,
+        "user_name":       user.nombre_usuario if user else "Desconocido",
         "order_date_time": order.order_date_time,
         "order_status":    order.order_status,
         "order_total":     order.order_total,
