@@ -56,3 +56,11 @@ flutter build web --release \
 ```
 
 > Sustituir `<proyecto>` por la URL del backend en Railway y `<publishable_key>` por la clave publicable de Supabase. Ninguna de estas claves debe subirse al repositorio.
+
+## Notificaciones de estado de pedido
+
+La app notifica al cliente cuando su pedido cambia a "En preparación" o "Listo" mediante polling cada 15 segundos (app en primer plano) y workmanager cada 15 minutos (app en background en Android).
+
+**Limitación en iOS:** las notificaciones en background pueden no funcionar de forma consistente en iOS debido a las restricciones del sistema operativo de Apple. En Android el comportamiento es el esperado.
+
+En web, el polling solo funciona mientras la app está abierta en el navegador.
