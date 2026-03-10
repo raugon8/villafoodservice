@@ -1,23 +1,18 @@
-"""
-Order Staff Service
-Business logic for staff/dependiente order management
-backend/services/order_staff_service.py
-"""
+# Lógica de negocio para la gestión de pedidos desde el lado del dependiente.
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List, Optional
 from decimal import Decimal
 
+# Imports de modelos
 from backend.models.pedido_model import OrderModel, OrderDetailModel
 from backend.models.producto_model import Producto
 from backend.models.user_model import User
 from backend.object_class.orders import VALID_STAFF_TRANSITIONS
 
 
-# ============================================================================
-# FUNCTION 1: List orders for staff
-# ============================================================================
-
+# Función para listar los pedidos del servicio asignado al dependiente
 def listar_pedidos_staff(
     db: Session,
     service: str,
@@ -33,7 +28,7 @@ def listar_pedidos_staff(
         query = query.filter(OrderModel.order_status == status)
 
     if search:
-        # search by order_id or client name
+        # Buscar por ID de pedido o por nombre de cliente
         try:
             order_id = int(search)
             query = query.filter(OrderModel.order_id == order_id)
@@ -44,12 +39,12 @@ def listar_pedidos_staff(
             user_ids = [u.usuario_ID for u in matching_users]
             query = query.filter(OrderModel.user_id.in_(user_ids))
 
-    # Order by status priority then date (oldest first within each status)
+    # Ordenar por prioridad de estado y luego por fecha (más antiguos primero)
     status_order = {"pendiente": 0, "en_preparacion": 1, "listo": 2}
     orders = query.order_by(OrderModel.order_date_time.asc()).all()
     orders.sort(key=lambda o: (status_order.get(o.order_status, 99), o.order_date_time))
 
-    # Apply pagination after sorting
+    # Aplicar paginación después de ordenar
     orders = orders[skip: skip + limit]
 
     result = []
@@ -60,21 +55,21 @@ def listar_pedidos_staff(
         ).count()
 
         result.append({
-            "order_id":         order.order_id,
-            "user_id":          order.user_id,
-            "user_name":        user.nombre_usuario if user else "Unknown",
-            "order_date_time":  order.order_date_time,
-            "order_status":     order.order_status,
-            "order_total":      order.order_total,
-            "order_notes":      order.order_notes,
-            "order_service":    order.order_service,
+            "order_id":          order.order_id,
+            "user_id":           order.user_id,
+            "user_name":         user.nombre_usuario if user else "Unknown",
+            "order_date_time":   order.order_date_time,
+            "order_status":      order.order_status,
+            "order_total":       order.order_total,
+            "order_notes":       order.order_notes,
+            "order_service":     order.order_service,
             "order_pickup_time": order.order_pickup_time,
-            "is_new":           not order.order_staff_seen,
-            "items_count":      items_count,
-            "details":          []
+            "is_new":            not order.order_staff_seen,
+            "items_count":       items_count,
+            "details":           []
         })
 
-    # Mark all returned orders as seen
+    # Marcar los pedidos devueltos como vistos
     for order in orders:
         order.order_staff_seen = True
     db.commit()
@@ -82,16 +77,14 @@ def listar_pedidos_staff(
     return result
 
 
-# ============================================================================
-# FUNCTION 2: Get staff order detail
-# ============================================================================
-
+# Función para obtener el detalle completo de un pedido (solo del servicio del dependiente)
 def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> dict:
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
     if not order:
         raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
 
+    # Verificar que el pedido pertenece al servicio del dependiente
     if order.order_service != service:
         raise HTTPException(status_code=403, detail="This order does not belong to your service")
 
@@ -112,11 +105,9 @@ def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> di
             "detail_subtotal":   d.detail_subtotal
         })
 
-    # Mark as seen
+    # Marcar como visto al abrir el detalle
     order.order_staff_seen = True
     db.commit()
-
-    items_count = len(details_list)
 
     return {
         "order_id":          order.order_id,
@@ -129,15 +120,12 @@ def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> di
         "order_service":     order.order_service,
         "order_pickup_time": order.order_pickup_time,
         "is_new":            False,
-        "items_count":       items_count,
+        "items_count":       len(details_list),
         "details":           details_list
     }
 
 
-# ============================================================================
-# FUNCTION 3: Update order status (staff)
-# ============================================================================
-
+# Función para actualizar el estado de un pedido (respeta las transiciones válidas para staff)
 def actualizar_estado_pedido_staff(
     db: Session,
     order_id: int,
@@ -149,12 +137,14 @@ def actualizar_estado_pedido_staff(
     if not order:
         raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
 
+    # Verificar que el pedido pertenece al servicio del dependiente
     if order.order_service != service:
         raise HTTPException(status_code=403, detail="This order does not belong to your service")
 
     current_status = order.order_status
     allowed = VALID_STAFF_TRANSITIONS.get(current_status, [])
 
+    # Verificar que la transición de estado es válida
     if nuevo_estado not in allowed:
         raise HTTPException(
             status_code=400,

@@ -1,13 +1,11 @@
-"""
-Order Service
-Business logic for cart validation and order management
-backend/services/order_service.py
-"""
+# Lógica de negocio para la validación del carrito y la gestión de pedidos.
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List, Optional
 from decimal import Decimal
 
+# Imports de modelos
 from backend.models.pedido_model import OrderModel, OrderDetailModel
 from backend.models.producto_model import Producto, ProductoIngrediente
 from backend.models.ingredient_model import Ingrediente
@@ -15,21 +13,21 @@ from backend.models.user_model import User
 from backend.services.disponibilidad_service import calcular_unidades_disponibles
 from backend.object_class.orders import VALID_TRANSITIONS, VALID_STATES
 
+# Mapeo de categoría de producto al servicio correspondiente
 SERVICE_MAP = {
     'Cafetería': 'cafeteria',
     'Restaurante': 'restaurante',
     'Repostería': 'reposteria'
 }
 
-# ============================================================================
-# FUNCTION 1: Validate cart
-# ============================================================================
 
+# Función para validar el carrito antes de confirmar un pedido
 def validate_cart(db: Session, items: list) -> List[dict]:
     result = []
     errors = []
 
     for item in items:
+        # Obtener producto activo
         product = db.query(Producto).filter(
             Producto.producto_id == item.product_id,
             Producto.producto_activo == True
@@ -39,6 +37,7 @@ def validate_cart(db: Session, items: list) -> List[dict]:
             errors.append(f"Product ID {item.product_id} not found or unavailable")
             continue
 
+        # Comprobar si hay suficiente stock
         stock_available = calcular_unidades_disponibles(db, item.product_id)
         available = stock_available >= item.quantity
 
@@ -52,13 +51,13 @@ def validate_cart(db: Session, items: list) -> List[dict]:
         subtotal = price * item.quantity
 
         result.append({
-            "product_id":      product.producto_id,
-            "product_name":    product.producto_nombre,
-            "product_price":   price,
-            "quantity":        item.quantity,
-            "subtotal":        subtotal,
-            "available":       available,
-            "stock_available": stock_available,
+            "product_id":        product.producto_id,
+            "product_name":      product.producto_nombre,
+            "product_price":     price,
+            "quantity":          item.quantity,
+            "subtotal":          subtotal,
+            "available":         available,
+            "stock_available":   stock_available,
             "product_categoria": product.producto_categoria
         })
 
@@ -71,10 +70,7 @@ def validate_cart(db: Session, items: list) -> List[dict]:
     return result
 
 
-# ============================================================================
-# FUNCTION 2: Create order
-# ============================================================================
-
+# Función para crear un pedido: valida el carrito, descuenta stock y guarda en BD
 def create_order(db: Session, user_id: int, order_data) -> dict:
     try:
         user = db.query(User).filter(User.usuario_ID == user_id).first()
@@ -84,7 +80,7 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
         validated_items = validate_cart(db, order_data.items)
         total = sum(item["subtotal"] for item in validated_items)
 
-        # Determinar order_service desde la categoría del primer producto
+        # Determinar el servicio a partir de la categoría del primer producto
         first_categoria = validated_items[0]["product_categoria"] if validated_items else None
         derived_service = SERVICE_MAP.get(first_categoria, 'restaurante')
 
@@ -107,6 +103,7 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
                 detail_subtotal=item["subtotal"]
             )
             db.add(detail)
+            # Descontar stock de ingredientes al confirmar
             _deduct_ingredient_stock(db, item["product_id"], item["quantity"])
 
         db.commit()
@@ -122,10 +119,7 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
         raise HTTPException(status_code=500, detail=f"Error creating order: {str(e)}")
 
 
-# ============================================================================
-# FUNCTION 3: Get order by ID
-# ============================================================================
-
+# Función para obtener un pedido por su ID
 def get_order_by_id(db: Session, order_id: int) -> dict:
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
@@ -135,10 +129,7 @@ def get_order_by_id(db: Session, order_id: int) -> dict:
     return _build_order_response(db, order)
 
 
-# ============================================================================
-# FUNCTION 4: List orders
-# ============================================================================
-
+# Función para listar pedidos con filtros opcionales de usuario y estado
 def list_orders(
     db: Session,
     user_id: Optional[int] = None,
@@ -181,10 +172,7 @@ def list_orders(
     return result
 
 
-# ============================================================================
-# FUNCTION 5: Update order status
-# ============================================================================
-
+# Función para actualizar el estado de un pedido (respeta las transiciones válidas)
 def update_order_status(db: Session, order_id: int, new_status: str) -> dict:
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
@@ -194,6 +182,7 @@ def update_order_status(db: Session, order_id: int, new_status: str) -> dict:
     current_status = order.order_status
     allowed_transitions = VALID_TRANSITIONS.get(current_status, [])
 
+    # Verificar que la transición de estado es válida
     if new_status not in allowed_transitions:
         raise HTTPException(
             status_code=400,
@@ -210,10 +199,7 @@ def update_order_status(db: Session, order_id: int, new_status: str) -> dict:
     return _build_order_response(db, order)
 
 
-# ============================================================================
-# FUNCTION 6: Cancel order
-# ============================================================================
-
+# Función para cancelar un pedido: solo el propietario puede cancelar y solo si está pendiente
 def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
     try:
         order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
@@ -234,6 +220,7 @@ def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
             OrderDetailModel.order_id == order_id
         ).all()
 
+        # Restaurar el stock de ingredientes al cancelar
         for detail in details:
             _restore_ingredient_stock(db, detail.product_id, detail.detail_quantity)
 
@@ -251,10 +238,7 @@ def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
         raise HTTPException(status_code=500, detail=f"Error cancelling order: {str(e)}")
 
 
-# ============================================================================
-# PRIVATE HELPER FUNCTIONS
-# ============================================================================
-
+# Función auxiliar: descuenta el stock de ingredientes al confirmar un pedido
 def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
     relations = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == product_id
@@ -269,6 +253,7 @@ def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int
             amount_to_deduct = Decimal(str(relation.productoIngrediente_cantidad)) * quantity_ordered
             ingredient.ingrediente_stockActual -= amount_to_deduct
 
+            # El stock no puede quedar negativo
             if ingredient.ingrediente_stockActual < 0:
                 raise HTTPException(
                     status_code=400,
@@ -276,6 +261,7 @@ def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int
                 )
 
 
+# Función auxiliar: restaura el stock de ingredientes al cancelar un pedido
 def _restore_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
     relations = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == product_id
@@ -291,6 +277,7 @@ def _restore_ingredient_stock(db: Session, product_id: int, quantity_ordered: in
             ingredient.ingrediente_stockActual += amount_to_restore
 
 
+# Función auxiliar: construye el diccionario de respuesta completo de un pedido con sus detalles
 def _build_order_response(db: Session, order: OrderModel) -> dict:
     details = db.query(OrderDetailModel).filter(
         OrderDetailModel.order_id == order.order_id
