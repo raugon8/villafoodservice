@@ -21,6 +21,12 @@ class UserLogin(BaseModel):
     correo: str
     contraseña: str
 
+# Para la Actualización (NUEVO)
+class UserUpdate(BaseModel):
+    nombre_usuario: str
+    correo: str
+    rol: str
+
 
 # --- DEPENDENCIAS ---
 def get_db():
@@ -79,9 +85,23 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Contraseña incorrecta"
         )
 
-    # [cite_start]4. Si va bien, devolver datos (sin contraseña) [cite: 6]
+# TAREA 3: ACTUALIZAR USUARIO
+@router.put("/update/{usuario_ID}", status_code=status.HTTP_200_OK)
+async def update_user(usuario_ID: int, user_data: UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.usuario_ID == usuario_ID).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.nombre_usuario = user_data.nombre_usuario
+    user.correo = user_data.correo
+    user.rol = user_data.rol
+
+    db.commit()
+    db.refresh(user)
+
     return {
         "usuario_ID": user.usuario_ID,
         "nombre_usuario": user.nombre_usuario,
-        "correo": user.correo
+        "correo": user.correo,
+        "rol": user.rol
     }
