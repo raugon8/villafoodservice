@@ -1,3 +1,4 @@
+// estadisticas de los pedidos para el panel principal
 class PedidosStats {
   final int total_pedidos;
   final int pedidos_pendientes;
@@ -6,14 +7,7 @@ class PedidosStats {
   final int pedidos_entregados;
   final int pedidos_cancelados;
 
-  PedidosStats({
-    required this.total_pedidos,
-    required this.pedidos_pendientes,
-    required this.pedidos_en_preparacion,
-    required this.pedidos_listos,
-    required this.pedidos_entregados,
-    required this.pedidos_cancelados,
-  });
+  PedidosStats({required this.total_pedidos, required this.pedidos_pendientes, required this.pedidos_en_preparacion, required this.pedidos_listos, required this.pedidos_entregados, required this.pedidos_cancelados});
 
   factory PedidosStats.from_json(Map<String, dynamic> json) => PedidosStats(
     total_pedidos: json['total_pedidos'] ?? 0,
@@ -25,6 +19,7 @@ class PedidosStats {
   );
 }
 
+// metricas de rendimiento de productos y stock
 class ProductosStats {
   final int total_productos_activos;
   final int productos_sin_stock;
@@ -32,13 +27,7 @@ class ProductosStats {
   final String producto_mas_vendido_nombre;
   final int producto_mas_vendido_cantidad;
 
-  ProductosStats({
-    required this.total_productos_activos,
-    required this.productos_sin_stock,
-    required this.productos_desactivados,
-    required this.producto_mas_vendido_nombre,
-    required this.producto_mas_vendido_cantidad,
-  });
+  ProductosStats({required this.total_productos_activos, required this.productos_sin_stock, required this.productos_desactivados, required this.producto_mas_vendido_nombre, required this.producto_mas_vendido_cantidad});
 
   factory ProductosStats.from_json(Map<String, dynamic> json) => ProductosStats(
     total_productos_activos: json['total_productos_activos'] ?? 0,
@@ -49,18 +38,14 @@ class ProductosStats {
   );
 }
 
+// metricas de ingredientes para alertas de inventario
 class IngredientesStats {
   final int total_ingredientes;
   final int ingredientes_stock_critico;
   final int ingredientes_stock_bajo;
   final int ingredientes_desactivados;
 
-  IngredientesStats({
-    required this.total_ingredientes,
-    required this.ingredientes_stock_critico,
-    required this.ingredientes_stock_bajo,
-    required this.ingredientes_desactivados,
-  });
+  IngredientesStats({required this.total_ingredientes, required this.ingredientes_stock_critico, required this.ingredientes_stock_bajo, required this.ingredientes_desactivados});
 
   factory IngredientesStats.from_json(Map<String, dynamic> json) => IngredientesStats(
     total_ingredientes: json['total_ingredientes'] ?? 0,
@@ -70,6 +55,7 @@ class IngredientesStats {
   );
 }
 
+// resumen del tipo de usuarios registrados en el sistema
 class UsuariosStats {
   final int total_usuarios;
   final int usuarios_admin;
@@ -77,13 +63,7 @@ class UsuariosStats {
   final int usuarios_dependiente;
   final int usuarios_almacen;
 
-  UsuariosStats({
-    required this.total_usuarios,
-    required this.usuarios_admin,
-    required this.usuarios_cliente,
-    required this.usuarios_dependiente,
-    required this.usuarios_almacen,
-  });
+  UsuariosStats({required this.total_usuarios, required this.usuarios_admin, required this.usuarios_cliente, required this.usuarios_dependiente, required this.usuarios_almacen});
 
   factory UsuariosStats.from_json(Map<String, dynamic> json) => UsuariosStats(
     total_usuarios: json['total_usuarios'] ?? 0,
@@ -94,16 +74,13 @@ class UsuariosStats {
   );
 }
 
+// informacion financiera de los pedidos completados
 class VentasStats {
   final double ingresos_totales;
   final int total_pedidos_completados;
   final double ticket_promedio;
 
-  VentasStats({
-    required this.ingresos_totales,
-    required this.total_pedidos_completados,
-    required this.ticket_promedio,
-  });
+  VentasStats({required this.ingresos_totales, required this.total_pedidos_completados, required this.ticket_promedio});
 
   factory VentasStats.from_json(Map<String, dynamic> json) => VentasStats(
     ingresos_totales: double.tryParse(json['ingresos_totales'].toString()) ?? 0.0,
@@ -112,6 +89,7 @@ class VentasStats {
   );
 }
 
+// contenedor principal que agrupa todas las estadisticas del dashboard
 class DashboardData {
   final PedidosStats pedidos;
   final ProductosStats productos;
@@ -121,15 +99,7 @@ class DashboardData {
   final String? periodo_inicio;
   final String? periodo_fin;
 
-  DashboardData({
-    required this.pedidos,
-    required this.productos,
-    required this.ingredientes,
-    required this.usuarios,
-    required this.ventas,
-    this.periodo_inicio,
-    this.periodo_fin,
-  });
+  DashboardData({required this.pedidos, required this.productos, required this.ingredientes, required this.usuarios, required this.ventas, this.periodo_inicio, this.periodo_fin});
 
   factory DashboardData.from_json(Map<String, dynamic> json) => DashboardData(
     pedidos: PedidosStats.from_json(json['pedidos']),

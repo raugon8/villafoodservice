@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
+// gestiona la autenticacion principal y recuperacion de roles
 class api_service {
   static const String base_url = 'http://localhost:8000';
 
-  // registro de usuario
+  // registra un nuevo cliente en el backend
   Future<user> register(String nombre, String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/register'),
@@ -20,10 +21,10 @@ class api_service {
         correo:         data['correo']
       );
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error en el registro');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error en el registro');
   }
 
-  // inicio de sesion
+  // valida credenciales y devuelve el usuario
   Future<user> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/login'),
@@ -38,10 +39,10 @@ class api_service {
         correo:         data['correo']
       );
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al iniciar sesión');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error al iniciar sesion');
   }
 
-  // obtener roles del usuario
+  // pide al backend los roles asignados al usuario autenticado
   Future<List<String>> get_user_roles(int user_id) async {
     final response = await http.get(
       Uri.parse('$base_url/usuarios/me/roles?user_id=$user_id'),
@@ -50,6 +51,6 @@ class api_service {
       final data = jsonDecode(response.body);
       return List<String>.from(data['roles']);
     }
-    throw Exception('Error al obtener roles');
+    throw Exception('error al obtener roles');
   }
 }
