@@ -5,7 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/producto_service.dart';
 import '../../models/producto.dart';
 import '../../models/cart_manager.dart';
-import 'producto_detalle_screen.dart'; // importamos la pantalla de detalles
+import 'producto_detalle_screen.dart'; 
 
 // pantalla de catalogo principal accesible y con imagenes
 class catalog_screen extends StatefulWidget {
@@ -58,7 +58,8 @@ class _catalog_screen_state extends State<catalog_screen> {
       );
       setState(() { _productos = results; _loading = false; });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      // guardamos el error exacto que nos lanza el servicio (incluyendo el timeout)
+      setState(() { _error = e.toString().replaceAll('Exception: ', ''); _loading = false; });
     }
   }
 
@@ -145,7 +146,26 @@ class _catalog_screen_state extends State<catalog_screen> {
             child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                ? Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.red)))
+                // bloque de error de red optimizado con boton de reintento
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.wifi_off, size: 48, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _buscar, // vuelve a lanzar la peticion sin salir de la pantalla
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reintentar'),
+                          )
+                        ],
+                      ),
+                    ),
+                  )
                 : _productos.isEmpty
                   ? const Center(child: Text('Sin resultados', style: TextStyle(color: Colors.grey)))
                   : ListView.builder(
@@ -195,7 +215,6 @@ class _catalog_screen_state extends State<catalog_screen> {
                 _placeholder_imagen(),
                 
               ListTile(
-                // aqui esta el ontap que faltaba para abrir los detalles
                 onTap: () {
                   Navigator.push(
                     context,
