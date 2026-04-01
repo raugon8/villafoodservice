@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
+import '../models/alergeno_model.dart'; // importamos el nuevo modelo
 
 // gestiona la autenticacion principal y recuperacion de roles
 class api_service {
@@ -52,5 +53,26 @@ class api_service {
       return List<String>.from(data['roles']);
     }
     throw Exception('error al obtener roles');
+  }
+
+  // simula la respuesta del backend para los alergenos europeos (tarea 15 borrarlo cuando lo tenga implementado Raul)
+  Future<List<alergeno>> get_alergenos_mock() async {
+    await Future.delayed(const Duration(seconds: 1));
+    return [
+      alergeno(id: 1, nombre: 'gluten'),
+      alergeno(id: 2, nombre: 'crustaceos'),
+      alergeno(id: 3, nombre: 'huevo'),
+      alergeno(id: 4, nombre: 'pescado'),
+      alergeno(id: 5, nombre: 'cacahuetes'),
+      alergeno(id: 6, nombre: 'soja'),
+      alergeno(id: 7, nombre: 'lacteos'),
+      alergeno(id: 8, nombre: 'frutos de cascara'),
+      alergeno(id: 9, nombre: 'apio'),
+      alergeno(id: 10, nombre: 'mostaza'),
+      alergeno(id: 11, nombre: 'sesamo'),
+      alergeno(id: 12, nombre: 'dioxido de azufre y sulfitos'),
+      alergeno(id: 13, nombre: 'altramuces'),
+      alergeno(id: 14, nombre: 'moluscos'),
+    ];
   }
 }
