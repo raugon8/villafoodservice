@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+// --- Idiomas ---
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
+// ---------------
 import '../../providers/auth_provider.dart';
 import '../../models/cart_manager.dart';
 import '../../models/order_model.dart';
@@ -29,38 +33,34 @@ class _cart_screen_state extends State<cart_screen> {
   }
 
   Future<void> _confirmar_pedido() async {
+    final loc = AppLocalizations.of(context)!;
     if (cart_manager.items.isEmpty) return;
     final auth = Provider.of<auth_provider>(context, listen: false);
     setState(() => _loading = true);
 
     try {
       final pedido = await _order_service.create_order(
-        cart_manager.items,
-        _notas_ctrl.text,
-        auth.user_id ?? 0,
-        current_role: auth.current_role ?? 'cliente',
+        cart_manager.items, _notas_ctrl.text, auth.user_id ?? 0, current_role: auth.current_role ?? 'cliente',
       );
       cart_manager.clear();
       if (!mounted) return;
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('¡Pedido confirmado!'),
+          title: Text(loc.cart_confirmado_tit),
           content: Text(
-            'Pedido #${pedido.order_id}\nTotal: €${pedido.order_total.toStringAsFixed(2)}\nEstado: ${pedido.order_status}'
+            '${loc.pedidos_numero}${pedido.order_id}\n${loc.pedidos_total} €${pedido.order_total.toStringAsFixed(2)}\n${loc.pedidos_estado} ${pedido.order_status}'
           ),
           actions: [
             ElevatedButton(
               onPressed: () { Navigator.pop(context); Navigator.pop(context); },
-              child: const Text('Aceptar'),
+              child: Text(loc.cart_aceptar),
             ),
           ],
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       setState(() => _loading = false);
     }
@@ -68,25 +68,33 @@ class _cart_screen_state extends State<cart_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tu carrito'),
+        title: Text(loc.carrito_titulo),
         actions: [
+          IconButton(
+            icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
+            onPressed: () => locale_prov.toggle_locale(),
+          ),
           if (cart_manager.items.isNotEmpty)
             TextButton(
               onPressed: () => setState(() => cart_manager.clear()),
-              child: const Text('Vaciar', style: TextStyle(color: Colors.red)),
+              child: Text(loc.cart_vaciar, style: const TextStyle(color: Colors.red)),
             ),
         ],
       ),
       body: cart_manager.items.isEmpty
-        ? const Center(
+        ? Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('El carrito está vacío', style: TextStyle(color: Colors.grey)),
+                const Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(loc.carrito_vacio, style: const TextStyle(color: Colors.grey)),
               ],
             ),
           )
@@ -101,29 +109,17 @@ class _cart_screen_state extends State<cart_screen> {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
-                        title: Text(item.product_name,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('€${item.product_price.toStringAsFixed(2)} / ud'),
+                        title: Text(item.product_name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('€${item.product_price.toStringAsFixed(2)} ${loc.cart_ud}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline),
-                              onPressed: () => _cambiar_cantidad(item, -1),
-                            ),
-                            Text('${item.quantity}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              onPressed: () => _cambiar_cantidad(item, 1),
-                            ),
+                            IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _cambiar_cantidad(item, -1)),
+                            Text('${item.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _cambiar_cantidad(item, 1)),
                             SizedBox(
                               width: 64,
-                              child: Text(
-                                '€${(item.product_price * item.quantity).toStringAsFixed(2)}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.right,
-                              ),
+                              child: Text('€${(item.product_price * item.quantity).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right),
                             ),
                           ],
                         ),
@@ -136,10 +132,10 @@ class _cart_screen_state extends State<cart_screen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
                   controller: _notas_ctrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas del pedido (opcional)',
-                    prefixIcon: Icon(Icons.note),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: loc.cart_notas,
+                    prefixIcon: const Icon(Icons.note),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ),
@@ -152,24 +148,16 @@ class _cart_screen_state extends State<cart_screen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${cart_manager.total_items} productos',
-                            style: const TextStyle(color: Colors.grey)),
-                          Text('Total: €${_total.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold)),
+                          Text('${cart_manager.total_items} ${loc.cart_productos_count}', style: const TextStyle(color: Colors.grey)),
+                          Text('${loc.pedidos_total} €${_total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
                     ElevatedButton.icon(
                       onPressed: _loading ? null : _confirmar_pedido,
-                      icon: _loading
-                        ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.check_circle),
-                      label: const Text('Confirmar pedido'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
+                      icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle),
+                      label: Text(loc.carrito_confirmar),
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
                     ),
                   ],
                 ),
