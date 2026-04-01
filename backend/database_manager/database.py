@@ -23,6 +23,8 @@ def migrate_db():
         ("orders",   "order_service",     "ALTER TABLE orders ADD COLUMN order_service VARCHAR(20)"),
         ("orders",   "order_staff_seen",  "ALTER TABLE orders ADD COLUMN order_staff_seen BOOLEAN DEFAULT 0"),
         ("usuarios", "usuario_servicio",  "ALTER TABLE usuarios ADD COLUMN usuario_servicio VARCHAR(20)"),
+        # Tarea 15
+        ("products", "image_url",         "ALTER TABLE products ADD COLUMN image_url VARCHAR(255)"),
     ]
 
     with engine.connect() as conn:
@@ -37,6 +39,7 @@ def migrate_db():
 
         _seed_roles(conn)
         _seed_root(conn)
+        _seed_alergenos(conn)  # Nuevo seed de sistema
         conn.commit()
 
 def _seed_roles(conn):
@@ -81,6 +84,26 @@ def _seed_root(conn):
         print("Root user seeded: root@villafoodservice.com / VillaFood2024!")
     else:
         print("Already exists, skipping: root user")
+
+def _seed_alergenos(conn):
+    """Insert official EU allergens if they don't exist yet"""
+    alergenos_ue = [
+        (1, 'Gluten'), (2, 'Crustáceos'), (3, 'Huevo'), (4, 'Pescado'),
+        (5, 'Cacahuetes'), (6, 'Soja'), (7, 'Lácteos'), (8, 'Frutos de cáscara'),
+        (9, 'Apio'), (10, 'Mostaza'), (11, 'Sésamo'), (12, 'Dióxido de azufre y sulfitos'),
+        (13, 'Altramuces'), (14, 'Moluscos')
+    ]
+    for a_id, a_nombre in alergenos_ue:
+        existing = conn.execute(
+            text("SELECT alergeno_id FROM alergenos WHERE alergeno_id = :id"),
+            {"id": a_id}
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                text("INSERT INTO alergenos (alergeno_id, nombre) VALUES (:id, :name)"),
+                {"id": a_id, "name": a_nombre}
+            )
+            print(f"Allergen seeded: {a_nombre}")
 
 def get_db():
     db = SessionLocal()
