@@ -1,6 +1,3 @@
-"""
-Schemas Pydantic para Productos
-"""
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from decimal import Decimal
@@ -10,6 +7,7 @@ class ProductoBase(BaseModel):
     producto_nombre: str = Field(..., max_length=100)
     producto_descripcion: Optional[str] = None
     producto_precioUnitario: Decimal = Field(..., gt=0)
+    # Valores válidos: Cafetería, Restaurante, Repostería.
     producto_categoria: str = Field(..., max_length=50)
 
     @validator('producto_categoria')
@@ -20,6 +18,7 @@ class ProductoBase(BaseModel):
         return v
 
 
+# Todos los campos de ProductoBase que son obligatorios al crear un producto.
 class ProductoCreate(ProductoBase):
     pass
 
@@ -32,6 +31,8 @@ class ProductoUpdate(BaseModel):
 
     @validator('producto_categoria')
     def validar_categoria(cls, v):
+        # El if v is not None es necesario por si el campo es opcional.
+        # Sin él, no mandar categoría lanzaría un error de validación innecesario.
         if v is not None:
             categorias_validas = ['Cafetería', 'Restaurante', 'Repostería']
             if v not in categorias_validas:
@@ -42,6 +43,7 @@ class ProductoUpdate(BaseModel):
 class ProductoResponse(ProductoBase):
     producto_id: int
     producto_activo: bool
+    # Campos calculados por disponibilidad_service, no existen en la BD.
     unidades_disponibles: int
     disponible: bool
 
@@ -50,21 +52,27 @@ class ProductoResponse(ProductoBase):
 
 
 class ProductoIngredienteBase(BaseModel):
+    """Datos necesarios para añadir un ingrediente a un producto."""
     ingrediente_id: int = Field(..., gt=0)
     cantidad_necesaria: Decimal = Field(..., gt=0)
 
 
 class IngredienteDetalleEnProducto(BaseModel):
+    """Detalle de un ingrediente dentro de un producto.
+    Incluye cuántas unidades del producto se pueden hacer con este ingrediente
+    y si ese el ingrediente limita la disponibilidad total."""
     ingrediente_id: int
     ingrediente_nombre: str
     cantidad_necesaria: Decimal
     unidad_medida: Optional[str] = None
     stock_disponible: Decimal
     unidades_posibles: int
+    # True si este ingrediente es el que limita la disponibilidad total del producto.
     es_limitante: bool
 
 
 class ProductoDetalleResponse(ProductoResponse):
+    """Detalle completo de un producto incluyendo análisis de disponibilidad por ingrediente."""
     ingredientes: List[IngredienteDetalleEnProducto]
     ingrediente_limitante: Optional[str] = None
 
@@ -73,6 +81,7 @@ class ProductoDetalleResponse(ProductoResponse):
 
 
 class DisponibilidadDetalleResponse(BaseModel):
+    """Análisis de disponibilidad de un producto desglosado por ingrediente."""
     producto_id: int
     producto_nombre: str
     unidades_disponibles: int
@@ -82,11 +91,11 @@ class DisponibilidadDetalleResponse(BaseModel):
 
 
 # ============================================================================
-# Schemas para búsqueda y filtros (Tarea 9)
+# Schemas para búsqueda y filtros
 # ============================================================================
 
 class ProductSearchFilters(BaseModel):
-    """Filtros disponibles para la búsqueda de productos"""
+    """Filtros disponibles para la búsqueda avanzada de productos."""
     search_query: Optional[str] = None
     service: Optional[str] = None
     category_id: Optional[int] = None
@@ -100,7 +109,7 @@ class ProductSearchFilters(BaseModel):
 
 
 class ProductSearchResponse(BaseModel):
-    """Respuesta con resultados de búsqueda y metadatos"""
+    """Respuesta de búsqueda: lista de productos, total encontrado y filtros aplicados."""
     products: List[ProductoResponse]
     total_count: int
     filters_applied: ProductSearchFilters

@@ -9,6 +9,8 @@ from backend.middleware.auth_middleware import RequireRole
 router = APIRouter(prefix="/ingredientes", tags=["ingredientes"])
 
 
+# Los GET permiten al dependiente ver ingredientes, pero no modificarlos.
+# Crear, actualizar y eliminar está restringido a admin y almacén.
 @router.get("/", response_model=List[IngredienteResponse])
 def listar_ingredientes(
     user_id: int = Query(...),
@@ -66,6 +68,7 @@ def eliminar_ingrediente(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
+    # El service comprueba que el ingrediente no esté en uso en ningún producto antes de eliminarlo.
     RequireRole(["admin", "almacen"])
     if not ingrediente_service.delete_ingrediente(db, id):
         raise HTTPException(status_code=404, detail="No encontrado")

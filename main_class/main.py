@@ -12,7 +12,7 @@ from backend.database_manager.database import init_db, migrate_db
 
 app = FastAPI()
 
-# Permite peticiones desde cualquier origen. En producción se restringirá a la URL del frontend (T11).
+# Permite peticiones desde cualquier origen.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

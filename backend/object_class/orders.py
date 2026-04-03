@@ -1,19 +1,15 @@
-"""
-Orders - Pydantic schemas
-backend/object_class/orders.py
-"""
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 
-# Valid order states
+# Estados válidos para cualquier pedido.
 VALID_STATES = ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cancelado']
 
-# Valid states for staff (cannot cancel or mark as delivered)
+# Estados válidos para el dependiente; no puede cancelar ni marcar como entregado.
 VALID_STAFF_STATES = ['pendiente', 'en_preparacion', 'listo']
 
-# Allowed state transitions
+# El cliente puede cancelar (pendiente → cancelado) y confirmar recepción (listo → entregado).
 VALID_TRANSITIONS = {
     'pendiente':      ['en_preparacion', 'cancelado'],
     'en_preparacion': ['listo'],
@@ -22,7 +18,7 @@ VALID_TRANSITIONS = {
     'cancelado':      []
 }
 
-# Staff-only transitions (more restricted)
+# Transiciones de estado permitidas para el dependiente: pendiente → en_preparacion → listo.
 VALID_STAFF_TRANSITIONS = {
     'pendiente':      ['en_preparacion'],
     'en_preparacion': ['listo'],
@@ -31,55 +27,57 @@ VALID_STAFF_TRANSITIONS = {
 
 
 # ============================================================================
-# PYDANTIC SCHEMAS - Input
+# SCHEMAS DE ENTRADA
 # ============================================================================
 
 class CartDetailBase(BaseModel):
-    """Schema for a single product in the cart"""
+    """Un producto dentro del carrito con su cantidad."""
     product_id: int = Field(..., gt=0)
-    quantity: int = Field(..., gt=0, le=50, description="Between 1 and 50 units")
+    quantity: int = Field(..., gt=0, le=50, description="Entre 1 y 50 unidades")
 
 
 class CartCreate(BaseModel):
-    """Schema to validate a full cart"""
+    """Carrito completo para validar disponibilidad antes de confirmar.
+    No descuenta stock — solo comprueba si los productos están disponibles."""
     items: List[CartDetailBase]
 
     @validator('items')
     def validate_items(cls, v):
         if not v:
-            raise ValueError("Cart cannot be empty")
+            raise ValueError("El carrito no puede estar vacío")
         return v
 
 
 class OrderCreate(BaseModel):
-    """Schema to create a new order"""
+    """Datos necesarios para crear un pedido. Al confirmarse, descuenta stock de ingredientes."""
     items: List[CartDetailBase]
     order_notes: Optional[str] = None
-    order_pickup_time: Optional[datetime] = None  # Task 6
+    order_pickup_time: Optional[datetime] = None
 
     @validator('items')
     def validate_items(cls, v):
         if not v:
-            raise ValueError("Order must have at least one product")
+            raise ValueError("El pedido debe tener al menos un producto")
         return v
 
 
 class OrderStatusUpdate(BaseModel):
-    """Schema to update order status"""
+    """Schema para actualizar el estado de un pedido. Valida que el estado sea uno de los permitidos."""
     order_status: str
 
     @validator('order_status')
     def validate_status(cls, v):
         if v not in VALID_STATES:
-            raise ValueError(f"Invalid status. Must be one of: {VALID_STATES}")
+            raise ValueError(f"Estado no válido. Debe ser uno de: {VALID_STATES}")
         return v
 
 
 # ============================================================================
-# PYDANTIC SCHEMAS - Output
+# SCHEMAS DE RESPUESTA
 # ============================================================================
 
 class ValidatedCartItemResponse(BaseModel):
+    """Resultado de validar un producto del carrito. Incluye si está disponible y cuántas unidades hay."""
     product_id: int
     product_name: str
     product_price: Decimal
@@ -93,6 +91,7 @@ class ValidatedCartItemResponse(BaseModel):
 
 
 class OrderDetailResponse(BaseModel):
+    """Una línea de pedido: producto, cantidad y precios en el momento de la compra."""
     detail_id: int
     product_id: int
     product_name: Optional[str] = None
@@ -105,6 +104,7 @@ class OrderDetailResponse(BaseModel):
 
 
 class OrderResponse(BaseModel):
+    """Respuesta completa de un pedido para el cliente, incluyendo sus líneas de detalle."""
     order_id: int
     user_id: int
     order_date_time: datetime
@@ -120,8 +120,10 @@ class OrderResponse(BaseModel):
 
 
 class OrderListResponse(BaseModel):
+    """Respuesta resumida de un pedido para listados. No incluye el detalle de líneas."""
     order_id: int
     user_id: int
+    # Opcional: el cliente no siempre necesita ver el nombre, el admin sí.
     user_name: Optional[str] = None
     order_date_time: datetime
     order_status: str
@@ -133,7 +135,9 @@ class OrderListResponse(BaseModel):
 
 
 class OrderStaffResponse(BaseModel):
-    """Order response for staff/dependiente view"""
+    """Respuesta de pedido para el dependiente.
+    Incluye is_new (si el dependiente aún no lo ha visto) y user_name obligatorio
+    para que el dependiente sepa a quién entregar el pedido."""
     order_id: int
     user_id: int
     user_name: str
@@ -143,6 +147,7 @@ class OrderStaffResponse(BaseModel):
     order_notes: Optional[str] = None
     order_service: Optional[str] = None
     order_pickup_time: Optional[datetime] = None
+    # True si el dependiente aún no ha visto este pedido en la lista o en el detalle.
     is_new: bool
     items_count: int
     details: List[OrderDetailResponse] = []

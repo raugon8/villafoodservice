@@ -1,5 +1,5 @@
+# Servicio más crítico del sistema: todo el catálogo depende de estas funciones.
 # Calcula la disponibilidad de productos en tiempo real según el stock de ingredientes.
-# Es el servicio más crítico del sistema: todo el catálogo depende de estas funciones.
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -7,16 +7,14 @@ from typing import List, Optional
 from decimal import Decimal
 import math
 
-# Imports de modelos
 from backend.models.producto_model import Producto, ProductoIngrediente
 from backend.models.ingredient_model import Ingrediente
 
 
-# Función para calcular las unidades disponibles de un producto
 def calcular_unidades_disponibles(db: Session, producto_id: int) -> int:
     """
-    Calcula cuántas unidades de un producto se pueden hacer con el stock actual.
-
+    Calcula cuántas unidades de un producto se pueden elaborar con el stock actual.
+    El ingrediente con menor resultado limita la disponibilidad total.
     Ejemplo:
         Pizza Margarita necesita:
         - 0.2 kg queso, stock: 1.0 kg → 1.0 / 0.2 = 5 unidades
@@ -25,70 +23,56 @@ def calcular_unidades_disponibles(db: Session, producto_id: int) -> int:
         Resultado: min(5, 3, 6) = 3 pizzas disponibles
     """
 
-    # Obtener todas las relaciones producto-ingrediente
     relaciones = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == producto_id
     ).all()
 
-    # Si el producto no tiene ingredientes → 0 disponibles
+    # Sin ingredientes asignados no se puede elaborar el producto.
     if not relaciones:
         return 0
 
-    # Lista para guardar las unidades posibles con cada ingrediente
     unidades_posibles_list = []
 
     for relacion in relaciones:
-        # Obtener el ingrediente
         ingrediente = db.query(Ingrediente).filter(
             Ingrediente.ingrediente_id == relacion.productoIngrediente_ingredienteId
         ).first()
 
-        # Si el ingrediente no existe o está inactivo → 0 disponibles
+        # Ingrediente inactivo o eliminado bloquea la disponibilidad del producto.
         if not ingrediente or not ingrediente.ingrediente_activo:
             return 0
 
-        # Obtener stock actual y cantidad necesaria
         stock_actual = float(ingrediente.ingrediente_stockActual)
         cantidad_necesaria = float(relacion.productoIngrediente_cantidad)
 
-        # Si stock es 0 → no se puede hacer ninguna unidad
         if stock_actual == 0:
             return 0
 
-        # Si cantidad necesaria es 0 → error de datos
         if cantidad_necesaria == 0:
             raise ValueError(f"Cantidad necesaria no puede ser 0 para ingrediente {ingrediente.ingrediente_id}")
 
-        # Calcular cuántas unidades se pueden hacer con este ingrediente
-        unidades_con_este_ingrediente = stock_actual / cantidad_necesaria
-
-        # Redondear hacia abajo (no podemos servir medias unidades)
-        unidades_con_este_ingrediente = math.floor(unidades_con_este_ingrediente)
+        # floor() porque no se pueden servir fracciones de unidad.
+        unidades_con_este_ingrediente = math.floor(stock_actual / cantidad_necesaria)
 
         unidades_posibles_list.append(unidades_con_este_ingrediente)
 
-    # El mínimo es lo que realmente se puede hacer
-    # (el ingrediente que se acabe primero limita la producción)
+    # El mínimo es el factor limitante: El ingrediente que se agota primero.
     unidades_disponibles = min(unidades_posibles_list)
 
     return unidades_disponibles
 
 
-# Función para obtener solo los productos con disponibilidad mayor a 0
 def get_productos_disponibles(db: Session, categoria: Optional[str] = None) -> List[dict]:
-    """Obtiene solo productos que tienen unidades_disponibles > 0.
+    """Devuelve solo los productos activos con al menos una unidad disponible.
     Opcionalmente filtra por categoría."""
 
-    # Obtener todos los productos activos
     query = db.query(Producto).filter(Producto.producto_activo == True)
 
-    # Filtrar por categoría si se especifica
     if categoria:
         query = query.filter(Producto.producto_categoria == categoria)
 
     productos = query.all()
 
-    # Filtrar solo los que tienen stock disponible
     productos_disponibles = []
 
     for producto in productos:
@@ -110,12 +94,10 @@ def get_productos_disponibles(db: Session, categoria: Optional[str] = None) -> L
     return productos_disponibles
 
 
-# Función para obtener el detalle de disponibilidad de un producto por ingrediente
 def get_detalle_disponibilidad(db: Session, producto_id: int) -> dict:
-    """Retorna información detallada sobre la disponibilidad de un producto,
-    incluyendo análisis por ingrediente y cuál es el limitante."""
+    """Devuelve el análisis de disponibilidad de un producto desglosado por ingrediente,
+    indicando cuál es el ingrediente limitante."""
 
-    # Obtener producto
     producto = db.query(Producto).filter(
         Producto.producto_id == producto_id,
         Producto.producto_activo == True
@@ -124,7 +106,6 @@ def get_detalle_disponibilidad(db: Session, producto_id: int) -> dict:
     if not producto:
         return None
 
-    # Obtener relaciones producto-ingrediente
     relaciones = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == producto_id
     ).all()
@@ -139,10 +120,9 @@ def get_detalle_disponibilidad(db: Session, producto_id: int) -> dict:
             "ingrediente_limitante": None
         }
 
-    # Calcular disponibilidad global
+    # Disponibilidad global del producto (mínimo entre todos los ingredientes).
     unidades_totales = calcular_unidades_disponibles(db, producto_id)
 
-    # Analizar cada ingrediente
     ingredientes_detalle = []
     ingrediente_limitante_nombre = None
     min_unidades = float('inf')
@@ -158,13 +138,12 @@ def get_detalle_disponibilidad(db: Session, producto_id: int) -> dict:
         stock_actual = float(ingrediente.ingrediente_stockActual)
         cantidad_necesaria = float(relacion.productoIngrediente_cantidad)
 
-        # Calcular unidades posibles con este ingrediente
         if cantidad_necesaria > 0:
             unidades_posibles = math.floor(stock_actual / cantidad_necesaria)
         else:
             unidades_posibles = 0
 
-        # Determinar si es el ingrediente limitante
+        # El ingrediente limitante es el que tiene el menor número de unidades posibles.
         es_limitante = (unidades_posibles == unidades_totales) and (unidades_totales > 0)
 
         if unidades_posibles < min_unidades:
@@ -191,25 +170,22 @@ def get_detalle_disponibilidad(db: Session, producto_id: int) -> dict:
     }
 
 
-# Función para verificar si hay stock suficiente antes de confirmar un pedido
 def verificar_disponibilidad_para_pedido(db: Session, producto_id: int, cantidad_solicitada: int) -> bool:
-    """Verifica si hay suficiente stock para un pedido. No modifica el stock, solo comprueba."""
+    """Comprueba si hay stock suficiente para un pedido. No modifica el stock."""
 
     unidades_disponibles = calcular_unidades_disponibles(db, producto_id)
 
     return cantidad_solicitada <= unidades_disponibles
 
 
-# Función para actualizar el stock tras confirmar un pedido
 def actualizar_stock_post_pedido(db: Session, pedido_id: int) -> None:
-    """Resta el stock de ingredientes al confirmar un pedido."""
-    # TODO: implementar cuando se complete la integración con la tabla de pedidos
+    """Pendiente de implementar. El descuento de stock se realiza actualmente
+    en order_service._deduct_ingredient_stock() al confirmar el pedido."""
     pass
 
 
-# Función para obtener productos con stock crítico (usado en alertas del dashboard)
 def get_productos_stock_critico(db: Session) -> List[dict]:
-    """Retorna productos con 5 o menos unidades disponibles."""
+    """Devuelve productos activos con 5 o menos unidades disponibles."""
 
     productos = db.query(Producto).filter(Producto.producto_activo == True).all()
 
@@ -218,7 +194,6 @@ def get_productos_stock_critico(db: Session) -> List[dict]:
     for producto in productos:
         unidades = calcular_unidades_disponibles(db, producto.producto_id)
 
-        # Considerar crítico si tiene 0 unidades o menos de 5
         if unidades <= 5:
             detalle = get_detalle_disponibilidad(db, producto.producto_id)
             productos_criticos.append(detalle)

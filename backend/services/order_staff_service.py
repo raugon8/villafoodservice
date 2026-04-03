@@ -5,14 +5,12 @@ from fastapi import HTTPException
 from typing import List, Optional
 from decimal import Decimal
 
-# Imports de modelos
 from backend.models.pedido_model import OrderModel, OrderDetailModel
 from backend.models.producto_model import Producto
 from backend.models.user_model import User
 from backend.object_class.orders import VALID_STAFF_TRANSITIONS
 
 
-# Función para listar los pedidos del servicio asignado al dependiente
 def listar_pedidos_staff(
     db: Session,
     service: str,
@@ -21,6 +19,8 @@ def listar_pedidos_staff(
     skip: int = 0,
     limit: int = 20
 ) -> List[dict]:
+    """Lista los pedidos del servicio asignado al dependiente.
+    Ordenado por prioridad de estado (pendiente primero) y fecha ascendente."""
 
     query = db.query(OrderModel).filter(OrderModel.order_service == service)
 
@@ -28,7 +28,7 @@ def listar_pedidos_staff(
         query = query.filter(OrderModel.order_status == status)
 
     if search:
-        # Buscar por ID de pedido o por nombre de cliente
+        # Si el texto es numérico busca por ID de pedido, si no por nombre de cliente.
         try:
             order_id = int(search)
             query = query.filter(OrderModel.order_id == order_id)
@@ -39,12 +39,11 @@ def listar_pedidos_staff(
             user_ids = [u.usuario_ID for u in matching_users]
             query = query.filter(OrderModel.user_id.in_(user_ids))
 
-    # Ordenar por prioridad de estado y luego por fecha (más antiguos primero)
     status_order = {"pendiente": 0, "en_preparacion": 1, "listo": 2}
     orders = query.order_by(OrderModel.order_date_time.asc()).all()
+    # El orden se aplica después del sort().
     orders.sort(key=lambda o: (status_order.get(o.order_status, 99), o.order_date_time))
 
-    # Aplicar paginación después de ordenar
     orders = orders[skip: skip + limit]
 
     result = []
@@ -57,19 +56,20 @@ def listar_pedidos_staff(
         result.append({
             "order_id":          order.order_id,
             "user_id":           order.user_id,
-            "user_name":         user.nombre_usuario if user else "Unknown",
+            "user_name":         user.nombre_usuario if user else "Desconocido",
             "order_date_time":   order.order_date_time,
             "order_status":      order.order_status,
             "order_total":       order.order_total,
             "order_notes":       order.order_notes,
             "order_service":     order.order_service,
             "order_pickup_time": order.order_pickup_time,
+            # is_new es True mientras el dependiente no haya visto el pedido.
             "is_new":            not order.order_staff_seen,
             "items_count":       items_count,
             "details":           []
         })
 
-    # Marcar los pedidos devueltos como vistos
+    # Al aparecer en la lista el dependiente ya los ha visto — se marcan como vistos.
     for order in orders:
         order.order_staff_seen = True
     db.commit()
@@ -77,16 +77,16 @@ def listar_pedidos_staff(
     return result
 
 
-# Función para obtener el detalle completo de un pedido (solo del servicio del dependiente)
 def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> dict:
+    """Devuelve el detalle completo de un pedido verificando que pertenece al servicio del dependiente.
+    También marca el pedido como visto si el dependiente llega directamente al detalle sin pasar por la lista."""
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
     if not order:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        raise HTTPException(status_code=404, detail=f"Pedido {order_id} no encontrado")
 
-    # Verificar que el pedido pertenece al servicio del dependiente
     if order.order_service != service:
-        raise HTTPException(status_code=403, detail="This order does not belong to your service")
+        raise HTTPException(status_code=403, detail="Este pedido no pertenece a tu servicio")
 
     user = db.query(User).filter(User.usuario_ID == order.user_id).first()
     details = db.query(OrderDetailModel).filter(
@@ -105,14 +105,13 @@ def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> di
             "detail_subtotal":   d.detail_subtotal
         })
 
-    # Marcar como visto al abrir el detalle
     order.order_staff_seen = True
     db.commit()
 
     return {
         "order_id":          order.order_id,
         "user_id":           order.user_id,
-        "user_name":         user.nombre_usuario if user else "Unknown",
+        "user_name":         user.nombre_usuario if user else "Desconocido",
         "order_date_time":   order.order_date_time,
         "order_status":      order.order_status,
         "order_total":       order.order_total,
@@ -125,32 +124,31 @@ def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> di
     }
 
 
-# Función para actualizar el estado de un pedido (respeta las transiciones válidas para staff)
 def actualizar_estado_pedido_staff(
     db: Session,
     order_id: int,
     nuevo_estado: str,
     service: str
 ) -> dict:
+    """Actualiza el estado de un pedido según las transiciones permitidas para el dependiente.
+    El dependiente solo puede avanzar si el pedido está: pendiente → en_preparacion → listo."""
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
     if not order:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        raise HTTPException(status_code=404, detail=f"Pedido {order_id} no encontrado")
 
-    # Verificar que el pedido pertenece al servicio del dependiente
     if order.order_service != service:
-        raise HTTPException(status_code=403, detail="This order does not belong to your service")
+        raise HTTPException(status_code=403, detail="Este pedido no pertenece a tu servicio")
 
     current_status = order.order_status
     allowed = VALID_STAFF_TRANSITIONS.get(current_status, [])
 
-    # Verificar que la transición de estado es válida
     if nuevo_estado not in allowed:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Cannot transition from '{current_status}' to '{nuevo_estado}'. "
-                f"Allowed: {allowed}"
+                f"No se puede pasar de '{current_status}' a '{nuevo_estado}'. "
+                f"Transiciones permitidas: {allowed}"
             )
         )
 

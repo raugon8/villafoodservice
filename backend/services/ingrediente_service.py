@@ -1,7 +1,3 @@
-"""
-Servicio para Ingredientes
-Lógica de negocio para la gestión de ingredientes
-"""
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List, Optional
@@ -12,6 +8,7 @@ from backend.models.producto_model import ProductoIngrediente
 
 
 def calcular_estado_stock(stock_actual: Decimal, stock_minimo: Decimal) -> str:
+    """Devuelve el estado del stock: crítico (0), bajo (por debajo del mínimo), o normal."""
     if stock_actual == 0:
         return "crítico"
     elif stock_actual < stock_minimo:
@@ -67,7 +64,7 @@ def get_ingrediente(db: Session, ingrediente_id: int) -> Optional[dict]:
 
 
 def create_ingrediente(db: Session, ingrediente_data) -> dict:
-    # ✅ convierte Pydantic a dict si es necesario
+    # Convierte el objeto Pydantic a dict si es necesario, antes de trabajar con él.
     if hasattr(ingrediente_data, 'model_dump'):
         ingrediente_data = ingrediente_data.model_dump()
 
@@ -98,7 +95,7 @@ def create_ingrediente(db: Session, ingrediente_data) -> dict:
 
 
 def update_ingrediente(db: Session, ingrediente_id: int, ingrediente_data) -> Optional[dict]:
-    # ✅ convierte Pydantic a dict si es necesario
+    # exclude_unset=True: solo incluye los campos enviados, evita sobreescribir con None.
     if hasattr(ingrediente_data, 'model_dump'):
         ingrediente_data = ingrediente_data.model_dump(exclude_unset=True)
 
@@ -111,6 +108,7 @@ def update_ingrediente(db: Session, ingrediente_id: int, ingrediente_data) -> Op
         return None
 
     if "ingrediente_nombre" in ingrediente_data:
+        # Busca duplicados excluyendo el propio ingrediente que se está editando.
         existe_otro = db.query(Ingrediente).filter(
             Ingrediente.ingrediente_nombre == ingrediente_data["ingrediente_nombre"],
             Ingrediente.ingrediente_id != ingrediente_id
@@ -148,6 +146,7 @@ def delete_ingrediente(db: Session, ingrediente_id: int) -> bool:
     if not ingrediente:
         return False
 
+    # Comprueba que el ingrediente no esté asignado a ningún producto antes de desactivarlo.
     en_uso = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_ingredienteId == ingrediente_id
     ).first()
@@ -158,6 +157,7 @@ def delete_ingrediente(db: Session, ingrediente_id: int) -> bool:
             detail="No se puede eliminar: el ingrediente está siendo usado en productos"
         )
 
+    # Soft delete: No se borra el registro, solo se marca como inactivo.
     ingrediente.ingrediente_activo = False
     db.commit()
 
@@ -165,6 +165,7 @@ def delete_ingrediente(db: Session, ingrediente_id: int) -> bool:
 
 
 def verificar_stock_bajo(db: Session) -> List[dict]:
+    """Devuelve todos los ingredientes activos cuyo stock está por debajo del mínimo."""
     ingredientes = db.query(Ingrediente).filter(
         Ingrediente.ingrediente_activo == True,
         Ingrediente.ingrediente_stockActual < Ingrediente.ingrediente_stockMinimo
