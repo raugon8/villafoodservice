@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # 1. Leer la URL desde las variables de entorno
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+SQLALCHEMY_DATABASE_URL = os.getenv("Villafood_db")
 
 # Validación de seguridad: avisa si no detecta la variable
 if not SQLALCHEMY_DATABASE_URL:
