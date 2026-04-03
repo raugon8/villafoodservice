@@ -25,7 +25,8 @@ else:
 # pool_pre_ping=True evita errores de "conexión cerrada" tras periodos de inactividad
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    connect_args={"options": "-c default_transaction_isolation='read committed'"}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
