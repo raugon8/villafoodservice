@@ -27,9 +27,13 @@ init_db()
 migrate_db()
 
 # Seed de datos de demostración (solo se ejecuta si la BD está vacía)
-db = next(get_db())
-demo_data(db)
-db.close()
+@app.on_event("startup")
+def startup():
+    db = next(get_db())
+    try:
+        demo_data(db)
+    finally:
+        db.close()
 
 # Registro de todos los routers del sistema
 app.include_router(auth_controller.router, prefix="/auth")
