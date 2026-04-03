@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from typing import List, Optional
 from decimal import Decimal
 
-# Imports de modelos
 from backend.models.pedido_model import OrderModel, OrderDetailModel
 from backend.models.producto_model import Producto, ProductoIngrediente
 from backend.models.ingredient_model import Ingrediente
@@ -13,7 +12,7 @@ from backend.models.user_model import User
 from backend.services.disponibilidad_service import calcular_unidades_disponibles
 from backend.object_class.orders import VALID_TRANSITIONS, VALID_STATES
 
-# Mapeo de categoría de producto al servicio correspondiente
+# Se usa al crear un pedido para asignar order_service automáticamente.
 SERVICE_MAP = {
     'Cafetería': 'cafeteria',
     'Restaurante': 'restaurante',
@@ -21,30 +20,30 @@ SERVICE_MAP = {
 }
 
 
-# Función para validar el carrito antes de confirmar un pedido
 def validate_cart(db: Session, items: list) -> List[dict]:
+    """Comprueba la disponibilidad de todos los productos del carrito.
+    Acumula todos los errores antes de lanzar la excepción, para informar al cliente de todos los problemas a la vez.
+    No modifica el stock."""
     result = []
     errors = []
 
     for item in items:
-        # Obtener producto activo
         product = db.query(Producto).filter(
             Producto.producto_id == item.product_id,
             Producto.producto_activo == True
         ).first()
 
         if not product:
-            errors.append(f"Product ID {item.product_id} not found or unavailable")
+            errors.append(f"Producto ID {item.product_id} no encontrado o no disponible")
             continue
 
-        # Comprobar si hay suficiente stock
         stock_available = calcular_unidades_disponibles(db, item.product_id)
         available = stock_available >= item.quantity
 
         if not available:
             errors.append(
-                f"'{product.producto_nombre}': requested {item.quantity}, "
-                f"available {stock_available}"
+                f"'{product.producto_nombre}': solicitadas {item.quantity}, "
+                f"disponibles {stock_available}"
             )
 
         price = Decimal(str(product.producto_precioUnitario))
@@ -64,23 +63,24 @@ def validate_cart(db: Session, items: list) -> List[dict]:
     if errors:
         raise HTTPException(
             status_code=400,
-            detail={"message": "Some products are not available", "errors": errors}
+            detail={"message": "Algunos productos no están disponibles", "errors": errors}
         )
 
     return result
 
 
-# Función para crear un pedido: valida el carrito, descuenta stock y guarda en BD
 def create_order(db: Session, user_id: int, order_data) -> dict:
+    """Crea un pedido: Valida el carrito, descuenta stock de ingredientes y guarda en BD.
+    Usa rollback si cualquier paso falla."""
     try:
         user = db.query(User).filter(User.usuario_ID == user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
         validated_items = validate_cart(db, order_data.items)
         total = sum(item["subtotal"] for item in validated_items)
 
-        # Determinar el servicio a partir de la categoría del primer producto
+        # El servicio se deriva de la categoría del primer producto del carrito.
         first_categoria = validated_items[0]["product_categoria"] if validated_items else None
         derived_service = SERVICE_MAP.get(first_categoria, 'restaurante')
 
@@ -92,6 +92,7 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
             order_service=derived_service
         )
         db.add(new_order)
+        # flush() genera el order_id sin confirmar la transacción; necesario para usarlo en los OrderDetailModel de las siguientes líneas.
         db.flush()
 
         for item in validated_items:
@@ -103,7 +104,6 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
                 detail_subtotal=item["subtotal"]
             )
             db.add(detail)
-            # Descontar stock de ingredientes al confirmar
             _deduct_ingredient_stock(db, item["product_id"], item["quantity"])
 
         db.commit()
@@ -116,20 +116,18 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating order: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al crear el pedido: {str(e)}")
 
 
-# Función para obtener un pedido por su ID
 def get_order_by_id(db: Session, order_id: int) -> dict:
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
     if not order:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        raise HTTPException(status_code=404, detail=f"Pedido {order_id} no encontrado")
 
     return _build_order_response(db, order)
 
 
-# Función para listar pedidos con filtros opcionales de usuario y estado
 def list_orders(
     db: Session,
     user_id: Optional[int] = None,
@@ -137,10 +135,12 @@ def list_orders(
     skip: int = 0,
     limit: int = 20
 ) -> List[dict]:
+    """Lista pedidos con filtros opcionales.
+    Si user_id es None devuelve todos los pedidos (uso del admin)."""
     if status and status not in VALID_STATES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid status. Must be one of: {VALID_STATES}"
+            detail=f"Estado no válido. Debe ser uno de: {VALID_STATES}"
         )
 
     query = db.query(OrderModel)
@@ -162,7 +162,7 @@ def list_orders(
         result.append({
             "order_id":        order.order_id,
             "user_id":         order.user_id,
-            "user_name":       user.nombre_usuario if user else "Unknown",
+            "user_name":       user.nombre_usuario if user else "Desconocido",
             "order_date_time": order.order_date_time,
             "order_status":    order.order_status,
             "order_total":     order.order_total,
@@ -172,23 +172,22 @@ def list_orders(
     return result
 
 
-# Función para actualizar el estado de un pedido (respeta las transiciones válidas)
 def update_order_status(db: Session, order_id: int, new_status: str) -> dict:
+    """Actualiza el estado de un pedido respetando las transiciones válidas definidas en VALID_TRANSITIONS."""
     order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
     if not order:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        raise HTTPException(status_code=404, detail=f"Pedido {order_id} no encontrado")
 
     current_status = order.order_status
     allowed_transitions = VALID_TRANSITIONS.get(current_status, [])
 
-    # Verificar que la transición de estado es válida
     if new_status not in allowed_transitions:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Cannot transition from '{current_status}' to '{new_status}'. "
-                f"Allowed from '{current_status}': {allowed_transitions}"
+                f"No se puede pasar de '{current_status}' a '{new_status}'. "
+                f"Transiciones permitidas desde '{current_status}': {allowed_transitions}"
             )
         )
 
@@ -199,28 +198,30 @@ def update_order_status(db: Session, order_id: int, new_status: str) -> dict:
     return _build_order_response(db, order)
 
 
-# Función para cancelar un pedido: solo el propietario puede cancelar y solo si está pendiente
 def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
+    """Cancela un pedido y restaura el stock de ingredientes.
+    Solo el cliente puede cancelar mientras el pedido está en estado pendiente.
+    Usa rollback si cualquier paso falla."""
     try:
         order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
 
         if not order:
-            raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+            raise HTTPException(status_code=404, detail=f"Pedido {order_id} no encontrado")
 
         if order.user_id != user_id:
-            raise HTTPException(status_code=403, detail="You do not have permission to cancel this order")
+            raise HTTPException(status_code=403, detail="No tienes permiso para cancelar este pedido")
 
         if order.order_status != "pendiente":
             raise HTTPException(
                 status_code=400,
-                detail=f"Only 'pendiente' orders can be cancelled. Current status: '{order.order_status}'"
+                detail=f"Solo se pueden cancelar pedidos en estado 'pendiente'. Estado actual: '{order.order_status}'"
             )
 
         details = db.query(OrderDetailModel).filter(
             OrderDetailModel.order_id == order_id
         ).all()
 
-        # Restaurar el stock de ingredientes al cancelar
+        # Restaurar el stock de cada ingrediente antes de marcar como cancelado.
         for detail in details:
             _restore_ingredient_stock(db, detail.product_id, detail.detail_quantity)
 
@@ -235,11 +236,11 @@ def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error cancelling order: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al cancelar el pedido: {str(e)}")
 
 
-# Función auxiliar: descuenta el stock de ingredientes al confirmar un pedido
 def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
+    """Descuenta el stock de ingredientes al confirmar un pedido."""
     relations = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == product_id
     ).all()
@@ -253,16 +254,15 @@ def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int
             amount_to_deduct = Decimal(str(relation.productoIngrediente_cantidad)) * quantity_ordered
             ingredient.ingrediente_stockActual -= amount_to_deduct
 
-            # El stock no puede quedar negativo
             if ingredient.ingrediente_stockActual < 0:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Insufficient stock for ingredient '{ingredient.ingrediente_nombre}'"
+                    detail=f"Stock insuficiente para el ingrediente '{ingredient.ingrediente_nombre}'"
                 )
 
 
-# Función auxiliar: restaura el stock de ingredientes al cancelar un pedido
 def _restore_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
+    """Restaura el stock de ingredientes al cancelar un pedido."""
     relations = db.query(ProductoIngrediente).filter(
         ProductoIngrediente.productoIngrediente_productoId == product_id
     ).all()
@@ -277,8 +277,8 @@ def _restore_ingredient_stock(db: Session, product_id: int, quantity_ordered: in
             ingredient.ingrediente_stockActual += amount_to_restore
 
 
-# Función auxiliar: construye el diccionario de respuesta completo de un pedido con sus detalles
 def _build_order_response(db: Session, order: OrderModel) -> dict:
+    """Construye el listado de respuesta completo de un pedido con sus líneas de detalle."""
     details = db.query(OrderDetailModel).filter(
         OrderDetailModel.order_id == order.order_id
     ).all()

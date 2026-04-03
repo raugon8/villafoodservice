@@ -1,42 +1,22 @@
-from backend.database_manager.database import Base
-from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey
-from sqlalchemy.orm import relationship
 from pydantic import BaseModel, Field
 from typing import Optional
-
-
-class CategoryModel(Base):
-    """Modelo para las categorías de productos"""
-    __tablename__ = "categories"
-    category_id = Column(Integer, primary_key=True, autoincrement=True)
-    category_name = Column(String(100), unique=True, nullable=False)
-    category_description = Column(Text, nullable=True)
-    category_active = Column(Boolean, default=True)
-
-
-class CategoryProductModel(Base):
-    """Tabla intermedia para relacionar productos y categorías"""
-    __tablename__ = "category_products"
-    category_product_id = Column(Integer, primary_key=True, autoincrement=True)
-    category_id = Column(Integer, ForeignKey("categories.category_id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("productos.producto_id"), nullable=False)
 
 
 class CategoryBase(BaseModel):
     category_name: str = Field(..., max_length=100)
     category_description: Optional[str] = None
 
-
+# Hereda todos los campos de CategoryBase.
 class CategoryCreate(CategoryBase):
     pass
 
-
+# Todos los campos opcionales para permitir actualizaciones parciales.
 class CategoryUpdate(BaseModel):
     category_name: Optional[str] = None
     category_description: Optional[str] = None
     category_active: Optional[bool] = None
 
-
+# Añade category_id y category_active, que solo existen tras guardar en BD.
 class CategoryResponse(CategoryBase):
     category_id: int
     category_active: bool

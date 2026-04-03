@@ -19,10 +19,7 @@ from backend.services import disponibilidad_service
 # FUNCIÓN 1: Listar productos con disponibilidad
 # ============================================================================
 def get_productos(db: Session, skip: int = 0, limit: int = 100, categoria: Optional[str] = None) -> List[dict]:
-    """
-    Obtiene lista de productos activos con su disponibilidad calculada.
-    Opcionalmente filtra por categoría.
-    """
+    """Devuelve productos activos con su disponibilidad calculada. Opcionalmente filtra por categoría."""
     
     # Query base: productos activos
     query = db.query(Producto).filter(Producto.producto_activo == True)
@@ -34,7 +31,7 @@ def get_productos(db: Session, skip: int = 0, limit: int = 100, categoria: Optio
     # Aplicar paginación
     productos = query.offset(skip).limit(limit).all()
     
-    # Para cada producto, calcular disponibilidad
+    # Para cada producto, calcular disponibilidad en tiempo real
     resultado = []
     for producto in productos:
         unidades = disponibilidad_service.calcular_unidades_disponibles(db, producto.producto_id)
@@ -216,11 +213,11 @@ def update_producto(db: Session, producto_id: int, producto_data: dict) -> Optio
 # FUNCIÓN 6: Eliminar producto (soft delete)
 # ============================================================================
 def delete_producto(db: Session, producto_id: int) -> bool:
-    """
-    Elimina un producto (soft delete).
-    VALIDACIÓN CRÍTICA: No se puede eliminar si tiene pedidos activos.
-    """
+    """Soft delete de un producto: se marca como inactivo, no se borra de la BD.
+    Valida que no tenga pedidos activos antes de desactivar."""
     
+    from backend.models.pedido_model import OrderModel, OrderDetailModel
+
     producto = db.query(Producto).filter(
         Producto.producto_id == producto_id,
         Producto.producto_activo == True
@@ -229,21 +226,19 @@ def delete_producto(db: Session, producto_id: int) -> bool:
     if not producto:
         return False
     
-    # VALIDACIÓN CRÍTICA: verificar que no tenga pedidos activos
-    # TODO: Cuando se implemente la tabla Pedidos, descomentar esta validación
-    # from models.pedido_model import Pedido
-    # pedidos_activos = db.query(Pedido).filter(
-    #     Pedido.producto_id == producto_id,
-    #     Pedido.estado.in_(["pendiente", "en preparación"])
-    # ).first()
-    # 
-    # if pedidos_activos:
-    #     raise HTTPException(
-    #         status_code=400,
-    #         detail="No se puede eliminar: el producto tiene pedidos activos"
-    #     )
+    # No se puede desactivar si hay pedidos en curso que contienen este producto.
+    pedidos_activos = db.query(OrderModel).join(OrderDetailModel).filter(
+        OrderDetailModel.product_id == producto_id,
+        OrderModel.order_status.in_(["pendiente", "en_preparacion"])
+    ).first()
     
-    # Soft delete
+    if pedidos_activos:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede eliminar: el producto tiene pedidos activos"
+        )
+    
+    # Soft delete: no se borra el registro, solo se marca como inactivo.
     producto.producto_activo = False
     db.commit()
     
@@ -324,7 +319,7 @@ def add_ingrediente_to_producto(db: Session, producto_id: int, ingrediente_id: i
 def update_cantidad_ingrediente(db: Session, producto_id: int, ingrediente_id: int, nueva_cantidad: Decimal) -> Optional[dict]:
     """
     Actualiza la cantidad necesaria de un ingrediente en un producto.
-    VALIDACIÓN: cantidad > 0
+    Valida si cantidad > 0.
     """
     
     # VALIDACIÓN: Cantidad > 0
@@ -394,12 +389,13 @@ def remove_ingrediente_from_producto(db: Session, producto_id: int, ingrediente_
     
     return True
 
+
 # ============================================================================
 # FUNCIÓN 10: Actualizar categorías de un producto
 # ============================================================================
 def update_product_categories(db: Session, producto_id: int, category_ids: list) -> dict:
     """Asigna o reemplaza las categorías de un producto."""
-    from backend.object_class.category import CategoryProductModel, CategoryModel
+    from backend.models.category_model import CategoryProductModel, CategoryModel  # ← único cambio
 
     producto = db.query(Producto).filter(
         Producto.producto_id == producto_id,

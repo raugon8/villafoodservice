@@ -6,16 +6,21 @@ from backend.models.user_model import User
 from backend.models.role_model import RoleModel, UserRoleModel
 from pydantic import BaseModel
 
+# Agrupa los endpoints de autenticación. Se registra en main.py con include_router.
 router = APIRouter()
+
+# Gestor de cifrado de contraseñas con bcrypt (contraseñas no se guardan en texto plano)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+# Schema para el registro: nombre, correo y contraseña.
 class UserCreate(BaseModel):
     nombre_usuario: str
     correo: str
     contraseña: str
 
 
+# Schema para el login: solo necesita correo y contraseña.
 class UserLogin(BaseModel):
     correo: str
     contraseña: str
@@ -33,9 +38,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         contraseña     = pwd_context.hash(user_data.contraseña)
     )
     db.add(new_user)
+    # flush() envía el INSERT a la BD sin confirmar, para generar el usuario_ID al que se le asignará el rol.
     db.flush()
 
-    # Assign 'cliente' role automatically
+    # Todo usuario registrado recibe el rol 'cliente' por defecto.
     cliente_role = db.query(RoleModel).filter(RoleModel.role_name == "cliente").first()
     if cliente_role:
         db.add(UserRoleModel(
@@ -61,7 +67,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    # Verify password - support both hashed and plain text (legacy)
+    # Verifica la contraseña con bcryp, si falla porque hay usuarios con contraseña en texto plano, compara directamente.
     try:
         password_ok = pwd_context.verify(user_data.contraseña, user.contraseña)
     except Exception:
@@ -70,7 +76,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     if not password_ok:
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
-    # Get active roles
+    # Obtiene los roles activos del usuario para devolverlos al frontend.
     active_roles = db.query(RoleModel).join(UserRoleModel).filter(
         UserRoleModel.user_id == user.usuario_ID,
         UserRoleModel.role_active == True

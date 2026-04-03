@@ -1,8 +1,3 @@
-"""
-Product Search Service
-Búsqueda y filtrado avanzado de productos
-backend/services/product_search_service.py
-"""
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
@@ -13,9 +8,11 @@ from backend.services import disponibilidad_service
 
 
 def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearchResponse:
+    """Búsqueda avanzada de productos con filtros dinámicos.
+    Usa SQL directo porque las condiciones WHERE son más sencillas."""
 
     # ================================================================
-    # Construir condiciones WHERE
+    # Construir condiciones WHERE dinámicamente según los filtros activos
     # ================================================================
     conditions = []
     params = {}
@@ -24,6 +21,7 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
         conditions.append("p.producto_activo = 1")
 
     if filters.search_query:
+        # Busca en nombre, descripción y nombre de ingredientes del producto.
         conditions.append("""(
             p.producto_nombre LIKE :search
             OR p.producto_descripcion LIKE :search
@@ -62,13 +60,15 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     # Ordenamiento
     # ================================================================
     order_map = {
-        "name_asc": "p.producto_nombre ASC",
-        "name_desc": "p.producto_nombre DESC",
-        "price_asc": "p.producto_precioUnitario ASC",
+        "name_asc":   "p.producto_nombre ASC",
+        "name_desc":  "p.producto_nombre DESC",
+        "price_asc":  "p.producto_precioUnitario ASC",
         "price_desc": "p.producto_precioUnitario DESC",
     }
 
     if filters.sort_by == "popularity":
+        # Ordena por total de unidades vendidas en pedidos no cancelados.
+        # COALESCE evita NULL si el producto nunca ha sido pedido.
         order_clause = """ORDER BY (
             SELECT COALESCE(SUM(od.detail_quantity), 0)
             FROM order_details od
@@ -80,7 +80,7 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
         order_clause = f"ORDER BY {order_map.get(filters.sort_by or 'name_asc', 'p.producto_nombre ASC')}"
 
     # ================================================================
-    # Contar total
+    # Contar total — Es necesario para que el frontend sepa cuántos resultados hay en total.
     # ================================================================
     count_sql = f"SELECT COUNT(*) FROM productos p {where_clause}"
     total_count = db.execute(text(count_sql), params).fetchone()[0]
@@ -102,7 +102,7 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     rows = db.execute(text(main_sql), params).fetchall()
 
     # ================================================================
-    # Construir respuesta con disponibilidad
+    # Añadir disponibilidad a cada producto.
     # ================================================================
     products = []
     for row in rows:
@@ -113,14 +113,14 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
             continue
 
         products.append({
-            "producto_id": producto_id,
-            "producto_nombre": row[1],
-            "producto_descripcion": row[2],
+            "producto_id":           producto_id,
+            "producto_nombre":       row[1],
+            "producto_descripcion":  row[2],
             "producto_precioUnitario": row[3],
-            "producto_categoria": row[4],
-            "producto_activo": bool(row[5]),
-            "unidades_disponibles": unidades,
-            "disponible": unidades > 0,
+            "producto_categoria":    row[4],
+            "producto_activo":       bool(row[5]),
+            "unidades_disponibles":  unidades,
+            "disponible":            unidades > 0,
         })
 
     return ProductSearchResponse(

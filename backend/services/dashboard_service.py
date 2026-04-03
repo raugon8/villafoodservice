@@ -1,8 +1,3 @@
-"""
-Dashboard Service
-Queries para estadísticas del panel administrativo
-backend/services/dashboard_service.py
-"""
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
@@ -20,6 +15,7 @@ def obtener_estadisticas_dashboard(
     fecha_inicio: Optional[datetime] = None,
     fecha_fin: Optional[datetime] = None
 ) -> DashboardResponse:
+    # Se usa SQL directo con SUM, CASE WHEN y GROUP BY.
 
     params = {}
     filtro_fechas_where = ""
@@ -62,7 +58,7 @@ def obtener_estadisticas_dashboard(
         FROM productos
     """)).fetchone()
 
-    # Productos sin stock: algún ingrediente con stock < cantidad necesaria
+    # Productos sin stock: Aquellos activos pero no tienen stock.
     sin_stock_result = db.execute(text("""
         SELECT COUNT(DISTINCT p.producto_id)
         FROM productos p
@@ -75,7 +71,7 @@ def obtener_estadisticas_dashboard(
         )
     """)).fetchone()
 
-    # Producto más vendido
+    # Excluye pedidos cancelados para no contar ventas que no se completaron.
     mas_vendido = db.execute(text(f"""
         SELECT p.producto_nombre, SUM(od.detail_quantity) as total_vendido
         FROM order_details od
@@ -133,6 +129,7 @@ def obtener_estadisticas_dashboard(
         GROUP BY r.role_name
     """)).fetchall()
 
+    # Crea un listado con los usuarios que tienen un rol.
     roles_dict = {row[0]: row[1] for row in roles_result}
 
     usuarios_stats = UsuariosStats(
@@ -157,6 +154,7 @@ def obtener_estadisticas_dashboard(
 
     ingresos = Decimal(str(ventas_result[0] or 0))
     completados = ventas_result[1] or 0
+    # Protección contra división por cero si no hay pedidos completados en el periodo.
     ticket = (ingresos / completados) if completados > 0 else Decimal('0')
 
     ventas_stats = VentasStats(

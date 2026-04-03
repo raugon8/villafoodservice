@@ -1,13 +1,8 @@
-"""
-Controller de Productos
-Endpoints REST para la gestión de productos y su disponibilidad
-"""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from decimal import Decimal
 
-# Imports de schemas
 from backend.object_class.products import (
     ProductoCreate,
     ProductoUpdate,
@@ -18,22 +13,15 @@ from backend.object_class.products import (
     ProductSearchFilters,
     ProductSearchResponse
 )
-
-# Imports de servicios
 from backend.services import producto_service, disponibilidad_service, product_search_service
-
-# Import de dependencia de BD
 from backend.database_manager.database import get_db
-
-# Import de middleware de roles
 from backend.middleware.auth_middleware import RequireRole
 
-# Router
 router = APIRouter(prefix="/productos", tags=["productos"])
 
 
 # ============================================================================
-# ENDPOINTS DE LISTADO Y CONSULTA - sin restricción de rol
+# ENDPOINTS DE CONSULTA — Sin restricción de rol
 # ============================================================================
 
 @router.get("/", response_model=List[ProductoResponse])
@@ -52,7 +40,7 @@ def listar_productos_disponibles(
     categoria: Optional[str] = Query(None, description="Filtrar por categoría"),
     db: Session = Depends(get_db)
 ):
-    """Lista solo productos que tienen stock disponible."""
+    """Lista solo productos con stock disponible (unidades_disponibles > 0)."""
     return disponibilidad_service.get_productos_disponibles(db, categoria)
 
 
@@ -62,7 +50,8 @@ def buscar_productos(
     current_role: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Búsqueda avanzada con filtros, texto libre e ingredientes."""
+    """Búsqueda avanzada por nombre, descripción e ingredientes.
+    Los clientes y usuarios no autenticados solo ven productos activos."""
     if current_role == "cliente" or current_role is None:
         filters.active_only = True
     return product_search_service.search_products(db, filters)
@@ -73,7 +62,7 @@ def obtener_producto(
     producto_id: int,
     db: Session = Depends(get_db)
 ):
-    """Obtiene el detalle completo de un producto con información de ingredientes."""
+    """Obtiene el detalle completo de un producto con sus ingredientes y disponibilidad."""
     producto = producto_service.get_producto_con_ingredientes(db, producto_id)
     if not producto:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
@@ -85,7 +74,7 @@ def obtener_disponibilidad_detallada(
     producto_id: int,
     db: Session = Depends(get_db)
 ):
-    """Obtiene análisis detallado de disponibilidad de un producto."""
+    """Obtiene el análisis de disponibilidad por ingrediente, incluyendo cuál es el limitante."""
     detalle = disponibilidad_service.get_detalle_disponibilidad(db, producto_id)
     if not detalle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
@@ -93,7 +82,7 @@ def obtener_disponibilidad_detallada(
 
 
 # ============================================================================
-# ENDPOINTS DE CREACIÓN Y MODIFICACIÓN - requieren rol
+# ENDPOINTS DE CREACIÓN Y MODIFICACIÓN — Solo rol admin, almacén o dependiente
 # ============================================================================
 
 @router.post("/", response_model=ProductoResponse, status_code=status.HTTP_201_CREATED)
@@ -117,8 +106,9 @@ def actualizar_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Actualiza un producto existente."""
+    """Actualiza un producto existente. Solo actualiza los campos enviados, ignora los None."""
     RequireRole(["admin", "almacen", "dependiente"])
+    # Filtra los campos None para no sobreescribir datos existentes con valores vacíos.
     producto_data = {k: v for k, v in producto_in.dict().items() if v is not None}
     if not producto_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se proporcionaron campos para actualizar")
@@ -135,7 +125,7 @@ def eliminar_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Elimina un producto (soft delete)."""
+    """Elimina un producto (Se marca como inactivo, no se borra de la BD)."""
     RequireRole(["admin", "almacen", "dependiente"])
     if not producto_service.delete_producto(db, producto_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
@@ -150,13 +140,13 @@ def actualizar_categorias_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Asigna o actualiza las categorías de un producto."""
+    """Asigna o reemplaza las categorías de un producto."""
     RequireRole(["admin", "almacen", "dependiente"])
     return producto_service.update_product_categories(db, producto_id, category_ids)
 
 
 # ============================================================================
-# ENDPOINTS DE GESTIÓN DE INGREDIENTES - requieren rol
+# ENDPOINTS DE GESTIÓN DE INGREDIENTES — Afectan directamente al cálculo de disponibilidad
 # ============================================================================
 
 @router.post("/{producto_id}/ingredientes", status_code=status.HTTP_201_CREATED)
@@ -201,7 +191,7 @@ def quitar_ingrediente_de_producto(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Elimina un ingrediente de un producto."""
+    """Elimina un ingrediente de un producto. El service valida que quede al menos uno."""
     RequireRole(["admin", "almacen", "dependiente"])
     if not producto_service.remove_ingrediente_from_producto(db, producto_id, ingrediente_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relación producto-ingrediente no encontrada")

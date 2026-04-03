@@ -8,11 +8,12 @@ from backend.controllers import order_controller
 from backend.controllers import user_controller
 from backend.controllers import dashboard_controller
 from backend.controllers import category_controller
-from backend.database_manager.database import init_db, migrate_db
+from backend.database_manager.database import init_db, migrate_db, get_db
+from backend.database_manager.demo_data import demo_data
 
 app = FastAPI()
 
-# Permite peticiones desde cualquier origen. En producción se restringirá a la URL del frontend (T11).
+# Permite peticiones desde cualquier origen.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,6 +25,11 @@ app.add_middleware(
 # Crea las tablas si no existen y aplica migraciones al arrancar
 init_db()
 migrate_db()
+
+# Seed de datos de demostración (solo se ejecuta si la BD está vacía)
+db = next(get_db())
+demo_data(db)
+db.close()
 
 # Registro de todos los routers del sistema
 app.include_router(auth_controller.router, prefix="/auth")

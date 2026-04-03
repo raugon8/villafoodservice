@@ -1,16 +1,13 @@
-"""
-Category Service
-CRUD de categorías de productos
-backend/services/category_service.py
-"""
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from backend.object_class.category import CategoryModel, CategoryCreate, CategoryUpdate, CategoryResponse
+from backend.models.category_model import CategoryModel
+from backend.object_class.category import CategoryCreate, CategoryUpdate, CategoryResponse
 
 
 def list_categories(db: Session, active_only: bool = True):
     query = db.query(CategoryModel)
+    # Si active_only es True, filtra las categorías desactivadas.
     if active_only:
         query = query.filter(CategoryModel.category_active == True)
     return query.order_by(CategoryModel.category_name.asc()).all()
@@ -37,6 +34,7 @@ def create_category(db: Session, category_data: CategoryCreate):
     )
     db.add(nueva)
     db.commit()
+    # refresh() necesario para devolver el objeto con el category_id generado por la BD.
     db.refresh(nueva)
     return nueva
 
@@ -47,6 +45,8 @@ def update_category(db: Session, category_id: int, category_data: CategoryUpdate
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
 
     if category_data.category_name is not None:
+        # Busca duplicados excluyendo la propia categoría que se está editando.
+        # Sin el category_id != category_id, editar sin cambiar el nombre lanzaría un falso error.
         existe = db.query(CategoryModel).filter(
             CategoryModel.category_name == category_data.category_name,
             CategoryModel.category_id != category_id
@@ -70,5 +70,7 @@ def deactivate_category(db: Session, category_id: int):
     category = db.query(CategoryModel).filter(CategoryModel.category_id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    # Soft delete: Solo se marca como inactivo.
+    # No se usa db.refresh() porque no es necesario generar un id.
     category.category_active = False
     db.commit()

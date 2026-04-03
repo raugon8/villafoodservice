@@ -12,14 +12,16 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/stats", response_model=DashboardResponse)
 def GetDashboardStats(
+    # Atajo de periodo: "hoy", "semana", "mes" o "6meses".
     periodo: Optional[str] = Query(None),
+    # Fechas opcionales para filtrar por rango exacto. Si no se indica ningún filtro, se devuelven todas las estadísticas.
     fecha_inicio: Optional[datetime] = None,
     fecha_fin: Optional[datetime] = None,
     user_id: int = Query(...),
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Obtiene las estadisticas filtradas por tiempo para el admin"""
+    """Estadísticas del sistema filtradas por periodo. Solo accesible por admin."""
     RequireRole(["admin"])
     start_date = fecha_inicio
     end_date = fecha_fin

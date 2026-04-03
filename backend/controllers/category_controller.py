@@ -9,6 +9,7 @@ from backend.services import category_service
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
+# Los endpoints de consulta no requieren rol, cualquier usuario puede ver las categorías.
 @router.get("/", response_model=List[CategoryResponse])
 def ListCategories(active_only: bool = True, db: Session = Depends(get_db)):
     """Lista todas las categorías disponibles"""
@@ -21,6 +22,7 @@ def GetCategory(category_id: int, db: Session = Depends(get_db)):
     return category_service.get_category_by_id(db, category_id)
 
 
+# Los endpoints de modificación requieren rol admin; user_id y current_role se usan como parámetro.
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 def CreateCategory(
     category_in: CategoryCreate,
@@ -53,7 +55,7 @@ def DeactivateCategory(
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Desactiva una categoría (Soft delete)"""
+    """Desactiva una categoría (No se borra, se marca como inactiva)"""
     RequireRole(["admin"])
     category_service.deactivate_category(db, category_id)
     return None
