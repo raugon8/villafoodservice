@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// --- Idiomas ---
 import '../../../l10n/app_localizations.dart'; 
 import '../../../providers/locale_provider.dart';
-// ---------------
 import '../../../services/order_service.dart';
 import '../../../models/order_model.dart';
 import '../../../providers/auth_provider.dart';

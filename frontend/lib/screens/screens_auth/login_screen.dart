@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// --- Imports para los idiomas (Tarea 17) ---
 import '../../l10n/app_localizations.dart'; 
 import '../../providers/locale_provider.dart';
-// -------------------------------------------
 import '../../../services/api_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../screens_home/home_screen.dart';

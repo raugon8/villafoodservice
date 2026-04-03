@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../providers/locale_provider.dart';
 import '../../../services/ingrediente_service.dart';
 import '../../../models/ingrediente.dart';
 import '../../../providers/auth_provider.dart';
@@ -19,6 +21,7 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
   @override
   void initState() {
     super.initState();
+    // carga ingredientes al entrar
     _cargar();
   }
 
@@ -32,23 +35,25 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
     });
   }
 
+  // devuelve el color del badge segun stock
   Color obtener_color_estado(String estado) {
-    if (estado == 'crítico') return Colors.red;
+    if (estado == 'crítico' || estado == 'critico') return Colors.red;
     if (estado == 'bajo') return Colors.orange;
     return Colors.green;
   }
 
-  Future<void> _confirmar_eliminar(ingrediente item) async {
+  // modal de seguridad antes de borrar
+  Future<void> _confirmar_eliminar(ingrediente item, AppLocalizations loc) async {
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar ingrediente'),
-        content: Text('¿Eliminar "${item.ingrediente_nombre}"?'),
+        title: Text(loc.ing_list_delete_title),
+        content: Text('${loc.ing_list_delete_msg} "${item.ingrediente_nombre}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.cat_cancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: Text(loc.ing_list_delete_msg, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -57,37 +62,32 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
     if (confirmado == true) {
       try {
         final auth = Provider.of<auth_provider>(context, listen: false);
-        await service_instancia.delete_ingrediente(
-          item.ingrediente_id,
-          user_id: auth.user_id ?? 1,
-          current_role: auth.current_role ?? 'admin',
-        );
+        await service_instancia.delete_ingrediente(item.ingrediente_id, user_id: auth.user_id ?? 1, current_role: auth.current_role ?? 'admin');
         _cargar();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ingrediente eliminado')),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.ing_list_deleted)));
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('error: $e'), backgroundColor: Colors.red));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestión de Ingredientes')),
+      appBar: AppBar(
+        title: Text(loc.ing_list_title),
+        actions: [
+          // selector de idiomas
+          IconButton(icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)), onPressed: () => locale_prov.toggle_locale()),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final resultado = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (c) => const ingrediente_form_screen()),
-          );
+          final resultado = await Navigator.push(context, MaterialPageRoute(builder: (c) => const ingrediente_form_screen()));
           if (resultado == true) _cargar();
         },
         child: const Icon(Icons.add),
@@ -95,15 +95,9 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
       body: FutureBuilder<List<ingrediente>>(
         future: _future_ingredientes,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No hay ingredientes'));
-          }
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return Center(child: Text('error: ${snapshot.error}'));
+          if (!snapshot.hasData || snapshot.data!.isEmpty) return Center(child: Text(loc.ing_list_empty));
 
           return ListView.builder(
             itemCount: snapshot.data!.length,
@@ -112,31 +106,20 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
               return Card(
                 child: ListTile(
                   title: Text(item.ingrediente_nombre),
-                  subtitle: Text('stock: ${item.ingrediente_stock_actual}, pesaje en: ${item.ingrediente_unidad_medida}'),
+                  subtitle: Text('${loc.ing_list_stock}${item.ingrediente_stock_actual}, ${loc.ing_list_weight}${item.ingrediente_unidad_medida}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Chip(
-                        label: Text(item.estado_stock.toUpperCase()),
-                        backgroundColor: obtener_color_estado(item.estado_stock),
-                      ),
+                      Chip(label: Text(item.estado_stock.toUpperCase()), backgroundColor: obtener_color_estado(item.estado_stock)),
                       const SizedBox(width: 4),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () async {
-                          final resultado = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ingrediente_form_screen(ingrediente_editar: item),
-                            ),
-                          );
+                          final resultado = await Navigator.push(context, MaterialPageRoute(builder: (_) => ingrediente_form_screen(ingrediente_editar: item)));
                           if (resultado == true) _cargar();
                         },
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _confirmar_eliminar(item),
-                      ),
+                      IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _confirmar_eliminar(item, loc)),
                     ],
                   ),
                 ),

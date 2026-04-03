@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// --- Idiomas ---
 import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
-// ---------------
 import '../../providers/auth_provider.dart';
 import '../../widgets/text_scale_toggle.dart';
 import '../../screens/screens_auth/role_selector_screen.dart';

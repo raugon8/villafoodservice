@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/order_staff_service.dart';
 import '../../models/order_staff_model.dart';
 import '../../providers/auth_provider.dart';
@@ -17,20 +19,21 @@ class _order_list_screen_state extends State<order_list_screen> {
   final search_controller = TextEditingController();
 
   String current_service = 'restaurante';
-
   List<order_staff_item> orders = [];
   String? selected_status;
   bool loading = true;
   String? error;
   Timer? refresh_timer;
 
-  final List<String> status_options = ['Todos', 'pendiente', 'en_preparacion', 'listo'];
+  // listas de estado base 
+  final List<String> status_options = ['todos', 'pendiente', 'en_preparacion', 'listo'];
   final List<String> service_options = ['cafeteria', 'restaurante', 'reposteria'];
 
   @override
   void initState() {
     super.initState();
     _load_orders();
+    // refrezco en tiempo real
     refresh_timer = Timer.periodic(const Duration(seconds: 30), (_) => _load_orders());
   }
 
@@ -49,7 +52,7 @@ class _order_list_screen_state extends State<order_list_screen> {
         current_service,
         user_id: auth.user_id ?? 1,
         current_role: auth.current_role ?? 'dependiente',
-        status: selected_status,
+        status: selected_status == 'todos' ? null : selected_status,
         search: search_controller.text.isEmpty ? null : search_controller.text,
       );
       setState(() { orders = result; loading = false; });
@@ -60,29 +63,34 @@ class _order_list_screen_state extends State<order_list_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('pedidos - $current_service'),
+        title: Text('${loc.ord_list_title}$current_service'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load_orders, tooltip: 'Actualizar')
+          // bandera obligatoria de la app
+          IconButton(icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)), onPressed: () => locale_prov.toggle_locale()),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load_orders)
         ],
       ),
       body: Column(
         children: [
-          // Selector de servicio
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: DropdownButtonFormField<String>(
               value: current_service,
               decoration: InputDecoration(
-                labelText: 'Servicio',
+                labelText: loc.ord_list_service,
                 prefixIcon: const Icon(Icons.store),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: service_options.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) {
-                setState(() { current_service = v!; });
+                setState(() => current_service = v!);
                 _load_orders();
               },
             ),
@@ -92,7 +100,7 @@ class _order_list_screen_state extends State<order_list_screen> {
             child: TextField(
               controller: search_controller,
               decoration: InputDecoration(
-                hintText: 'buscar por nº pedido o cliente',
+                hintText: loc.ord_list_search,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -103,15 +111,15 @@ class _order_list_screen_state extends State<order_list_screen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: DropdownButtonFormField<String>(
-              value: selected_status ?? 'Todos',
+              value: selected_status ?? 'todos',
               decoration: InputDecoration(
-                labelText: 'Estado',
+                labelText: loc.ord_list_status,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: status_options.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) {
-                setState(() { selected_status = v == 'Todos' ? null : v; });
+                setState(() => selected_status = v);
                 _load_orders();
               },
             ),
@@ -122,7 +130,7 @@ class _order_list_screen_state extends State<order_list_screen> {
               : error != null
                 ? Center(child: Text('error: $error'))
                 : orders.isEmpty
-                  ? const Center(child: Text('no hay pedidos'))
+                  ? Center(child: Text(loc.ord_list_empty))
                   : ListView.builder(
                       itemCount: orders.length,
                       itemBuilder: (context, index) {
@@ -134,8 +142,7 @@ class _order_list_screen_state extends State<order_list_screen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: color,
-                              child: Text('#${item.order_id}',
-                                style: const TextStyle(color: Colors.white, fontSize: 11)),
+                              child: Text('#${item.order_id}', style: const TextStyle(color: Colors.white, fontSize: 11)),
                             ),
                             title: Row(
                               children: [
@@ -144,32 +151,15 @@ class _order_list_screen_state extends State<order_list_screen> {
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange,
-                                      borderRadius: BorderRadius.circular(4)
-                                    ),
-                                    child: const Text('NUEVO', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                    decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
+                                    child: Text(loc.ord_list_new, style: const TextStyle(color: Colors.white, fontSize: 10)),
                                   )
                                 ]
                               ],
                             ),
-                            subtitle: Text(
-                              '${item.order_status} · ${item.items_count} productos · €${item.order_total.toStringAsFixed(2)}'
-                            ),
-                            trailing: Chip(
-                              label: Text(item.order_status,
-                                style: const TextStyle(color: Colors.white, fontSize: 11)),
-                              backgroundColor: color,
-                            ),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => order_detail_screen(
-                                  order_id: item.order_id,
-                                  service: current_service,
-                                )
-                              )
-                            ).then((_) => _load_orders()),
+                            subtitle: Text('${item.order_status} · ${item.items_count} ${loc.ord_list_products} · €${item.order_total.toStringAsFixed(2)}'),
+                            trailing: Chip(label: Text(item.order_status, style: const TextStyle(color: Colors.white, fontSize: 11)), backgroundColor: color),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => order_detail_screen(order_id: item.order_id, service: current_service))).then((_) => _load_orders()),
                           ),
                         );
                       },
