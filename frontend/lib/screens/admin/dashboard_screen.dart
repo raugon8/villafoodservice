@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/dashboard_service.dart';
 import '../../models/dashboard_model.dart';
 import '../../providers/auth_provider.dart';
 
+/// pantalla del panel de control principal para los administradores
+/// muestra estadisticas generales y graficas temporales de rendimiento
 class dashboard_screen extends StatefulWidget {
   const dashboard_screen({super.key});
 
@@ -29,6 +32,7 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     _cargar();
   }
 
+  /// solicita los datos del dashboard al backend usando los filtros actuales
   Future<void> _cargar() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -47,6 +51,7 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     }
   }
 
+  /// abre el selector de fechas nativo para elegir un rango personalizado
   Future<void> _seleccionar_fechas() async {
     final loc = AppLocalizations.of(context)!;
     final inicio = await showDatePicker(
@@ -95,14 +100,18 @@ class _dashboard_screen_state extends State<dashboard_screen> {
             child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                ? Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.red)))
-                : _build_contenido(loc),
+                ? Center(child: Text('error: $_error', style: const TextStyle(color: Colors.red)))
+                : _build_contenido(loc, is_spanish),
           ),
         ],
       ),
     );
   }
 
+  /// construye la barra superior con el selector de periodo
+  ///
+  /// args:
+  ///   loc (AppLocalizations): diccionario de traduccion activo
   Widget _build_filtros(AppLocalizations loc) {
     final Map<String, String> periodos = {
       'todo': loc.dash_period_all,
@@ -150,7 +159,12 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  Widget _build_contenido(AppLocalizations loc) {
+  /// construye el cuerpo principal con las tarjetas numericas y las graficas temporales
+  ///
+  /// args:
+  ///   loc (AppLocalizations): diccionario de traduccion activo
+  ///   is_spanish (bool): bandera para usar traducciones manuales en graficas
+  Widget _build_contenido(AppLocalizations loc, bool is_spanish) {
     final d = _data!;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
@@ -171,6 +185,17 @@ class _dashboard_screen_state extends State<dashboard_screen> {
             ],
           ),
           const SizedBox(height: 16),
+          
+          if (d.series_pedidos.isNotEmpty)
+            _build_grafica_lineal(
+              titulo: is_spanish ? 'pedidos ultimos 7 dias' : 'orders last 7 days',
+              datos: d.series_pedidos.map((e) => FlSpot(d.series_pedidos.indexOf(e).toDouble(), e.total.toDouble())).toList(),
+              etiquetas: d.series_pedidos.map((e) => e.fecha).toList(),
+              color: Colors.lightBlue,
+              es_moneda: false,
+            ),
+          
+          const SizedBox(height: 16),
           _seccion(loc.dash_sec_ventas, Icons.euro),
           GridView.count(
             crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
@@ -181,6 +206,17 @@ class _dashboard_screen_state extends State<dashboard_screen> {
               _card(loc.dash_card_ticket, '€${d.ventas.ticket_promedio.toStringAsFixed(2)}', Colors.teal),
             ],
           ),
+          const SizedBox(height: 16),
+
+          if (d.series_ingresos.isNotEmpty)
+            _build_grafica_lineal(
+              titulo: is_spanish ? 'ingresos ultimos 7 dias' : 'revenue last 7 days',
+              datos: d.series_ingresos.map((e) => FlSpot(d.series_ingresos.indexOf(e).toDouble(), e.total)).toList(),
+              etiquetas: d.series_ingresos.map((e) => e.fecha).toList(),
+              color: Colors.amber,
+              es_moneda: true,
+            ),
+
           const SizedBox(height: 16),
           _seccion(loc.dash_sec_productos, Icons.fastfood),
           GridView.count(
@@ -235,6 +271,11 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
+  /// construye una etiqueta de seccion con un icono
+  ///
+  /// args:
+  ///   titulo (String): el texto principal de la seccion
+  ///   icono (IconData): el icono decorativo
   Widget _seccion(String titulo, IconData icono) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -248,6 +289,13 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
+  /// construye una tarjeta para mostrar un valor numerico simple
+  ///
+  /// args:
+  ///   titulo (String): la etiqueta pequeña inferior
+  ///   valor (String): el numero grande en el centro
+  ///   color (Color): el color del texto principal
+  ///   icon (IconData?): un icono opcional para acompañar el valor
   Widget _card(String titulo, String valor, Color color, {IconData? icon}) {
     return Card(
       child: Padding(
@@ -264,6 +312,12 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
+  /// construye una tarjeta especial para el producto mas vendido con icono de estrella
+  ///
+  /// args:
+  ///   nombre (String): el nombre del producto
+  ///   cantidad (int): unidades vendidas
+  ///   loc (AppLocalizations): diccionario de traducciones
   Widget _card_mas_vendido(String nombre, int cantidad, AppLocalizations loc) {
     return Card(
       child: Padding(
@@ -275,6 +329,92 @@ class _dashboard_screen_state extends State<dashboard_screen> {
             Text(nombre, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
             Text('$cantidad${loc.dash_card_vendidos}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// construye una grafica de lineas usando fl_chart adaptada para series temporales
+  ///
+  /// args:
+  ///   titulo (String): texto superior descriptivo
+  ///   datos (List<FlSpot>): lista de puntos cartesianos a dibujar
+  ///   etiquetas (List<String>): fechas en formato string para el eje x
+  ///   color (Color): color principal de la linea y los puntos
+  ///   es_moneda (bool): si es true, añade el simbolo del euro en el tooltip
+  Widget _build_grafica_lineal({
+    required String titulo,
+    required List<FlSpot> datos,
+    required List<String> etiquetas,
+    required Color color,
+    required bool es_moneda,
+  }) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: const FlGridData(show: true, drawVerticalLine: false),
+                  titlesData: FlTitlesData(
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 30,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < etiquetas.length) {
+                            // mostramos solo mes y dia para que quepa bien
+                            final fecha_corta = etiquetas[index].length > 5 
+                                ? etiquetas[index].substring(5) 
+                                : etiquetas[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(fecha_corta, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            );
+                          }
+                          return const Text('');
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: datos,
+                      isCurved: true,
+                      color: color,
+                      barWidth: 3,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: color.withOpacity(0.2),
+                      ),
+                    ),
+                  ],
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipItems: (touchedSpots) {
+                        return touchedSpots.map((spot) {
+                          final val = es_moneda ? '€${spot.y.toStringAsFixed(2)}' : spot.y.toInt().toString();
+                          return LineTooltipItem(val, const TextStyle(color: Colors.white, fontWeight: FontWeight.bold));
+                        }).toList();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
