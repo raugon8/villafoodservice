@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/order_staff_model.dart';
 
+// gestiona los pedidos desde la perspectiva de cocina o mostrador
 class order_staff_service {
   static const String base_url = 'http://localhost:8000';
 
+  // lista los pedidos filtrando por servicio (cafeteria, restaurante...) y estado
   Future<List<order_staff_item>> list_staff_orders(
     String service, {
     required int user_id,
@@ -22,9 +24,10 @@ class order_staff_service {
       List data = jsonDecode(response.body);
       return data.map((o) => order_staff_item.from_json(o)).toList();
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'error loading staff orders');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error cargando pedidos staff');
   }
 
+  // recupera los detalles especificos de una comanda
   Future<order_staff_item> get_staff_order_detail(
     int order_id,
     String service, {
@@ -37,9 +40,10 @@ class order_staff_service {
     if (response.statusCode == 200) {
       return order_staff_item.from_json(jsonDecode(response.body));
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'error loading order detail');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error cargando detalle');
   }
 
+  // avanza el pedido en el flujo (pendiente -> preparacion -> listo)
   Future<order_staff_item> update_order_status(
     int order_id,
     String new_status,
@@ -55,6 +59,6 @@ class order_staff_service {
     if (response.statusCode == 200) {
       return order_staff_item.from_json(jsonDecode(response.body));
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'error updating status');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error actualizando estado');
   }
 }

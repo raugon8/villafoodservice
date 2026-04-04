@@ -45,18 +45,19 @@ def migrate_db():
     consultando el esquema de información de Postgres.
     """
     migrations = [
-        ("orders", "order_pickup_time", "ALTER TABLE orders ADD COLUMN order_pickup_time TIMESTAMP"),
-        ("orders", "order_service", "ALTER TABLE orders ADD COLUMN order_service VARCHAR(20)"),
-        ("orders", "order_staff_seen", "ALTER TABLE orders ADD COLUMN order_staff_seen BOOLEAN DEFAULT FALSE"),
-        ("usuarios", "usuario_servicio", "ALTER TABLE usuarios ADD COLUMN usuario_servicio VARCHAR(20)"),
+        ("orders",   "order_pickup_time", "ALTER TABLE orders ADD COLUMN order_pickup_time TIMESTAMP"),
+        ("orders",   "order_service",     "ALTER TABLE orders ADD COLUMN order_service VARCHAR(20)"),
+        ("orders",   "order_staff_seen",  "ALTER TABLE orders ADD COLUMN order_staff_seen BOOLEAN DEFAULT FALSE"),
+        ("usuarios", "usuario_servicio",  "ALTER TABLE usuarios ADD COLUMN usuario_servicio VARCHAR(20)"),
+        ("productos", "image_url",        "ALTER TABLE productos ADD COLUMN image_url VARCHAR(255)"),
     ]
 
     with engine.connect() as conn:
         for table, column, sql in migrations:
             # Consulta optimizada: solo pedimos la columna que buscamos
             check_query = text("""
-                SELECT column_name 
-                FROM information_schema.columns 
+                SELECT column_name
+                FROM information_schema.columns
                 WHERE table_name = :table AND column_name = :column
             """)
 
@@ -70,6 +71,7 @@ def migrate_db():
 
         _seed_roles(conn)
         _seed_root(conn)
+        _seed_alergenos(conn)  # Seed de los 14 alérgenos europeos de declaración obligatoria
         # Importante: confirmar cambios en el motor de Postgres
         conn.commit()
 
@@ -77,10 +79,10 @@ def migrate_db():
 def _seed_roles(conn):
     """Inserta roles base usando booleanos nativos (TRUE)."""
     roles = [
-        ('admin', 'Administrador total'),
-        ('cliente', 'Cliente final'),
+        ('admin',       'Administrador total'),
+        ('cliente',     'Cliente final'),
         ('dependiente', 'Gestión de pedidos'),
-        ('almacen', 'Gestión de inventario'),
+        ('almacen',     'Gestión de inventario'),
     ]
     for role_name, role_desc in roles:
         existing = conn.execute(
@@ -91,7 +93,7 @@ def _seed_roles(conn):
         if not existing:
             conn.execute(
                 text("""
-                    INSERT INTO roles (role_name, role_description, role_active, role_action) 
+                    INSERT INTO roles (role_name, role_description, role_active, role_action)
                     VALUES (:name, :desc, TRUE, TRUE)
                 """),
                 {"name": role_name, "desc": role_desc}
@@ -111,7 +113,7 @@ def _seed_root(conn):
 
         conn.execute(
             text("""
-                INSERT INTO usuarios (nombre_usuario, correo, contraseña) 
+                INSERT INTO usuarios (nombre_usuario, correo, contraseña)
                 VALUES ('Root Admin', :email, :pwd)
             """),
             {"email": root_email, "pwd": hashed_password}
@@ -128,7 +130,40 @@ def _seed_root(conn):
         print(f"Root configurado correctamente: {root_email}")
 
 
+def _seed_alergenos(conn):
+    """Inserta los 14 alérgenos oficiales de la UE si no existen todavía."""
+    alergenos_ue = [
+        (1,  'Gluten'),
+        (2,  'Crustáceos'),
+        (3,  'Huevo'),
+        (4,  'Pescado'),
+        (5,  'Cacahuetes'),
+        (6,  'Soja'),
+        (7,  'Lácteos'),
+        (8,  'Frutos de cáscara'),
+        (9,  'Apio'),
+        (10, 'Mostaza'),
+        (11, 'Sésamo'),
+        (12, 'Dióxido de azufre y sulfitos'),
+        (13, 'Altramuces'),
+        (14, 'Moluscos'),
+    ]
+    for a_id, a_nombre in alergenos_ue:
+        existing = conn.execute(
+            text("SELECT alergeno_id FROM alergenos WHERE alergeno_id = :id"),
+            {"id": a_id}
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                text("INSERT INTO alergenos (alergeno_id, nombre) VALUES (:id, :name)"),
+                {"id": a_id, "name": a_nombre}
+            )
+            print(f"Alérgeno insertado: {a_nombre}")
+
+
 def get_db():
+    # Generador que proporciona una sesión de BD a cada endpoint.
+    # Uso yield para que al terminar la petición, se cierre la sesión en finally.
     db = SessionLocal()
     try:
         yield db

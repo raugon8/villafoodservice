@@ -3,12 +3,22 @@ from typing import Optional, List
 from decimal import Decimal
 
 
+class AlergenoResponse(BaseModel):
+    """Schema para la respuesta de alérgenos"""
+    alergeno_id: int
+    nombre: str
+
+    class Config:
+        from_attributes = True
+
+
 class ProductoBase(BaseModel):
     producto_nombre: str = Field(..., max_length=100)
     producto_descripcion: Optional[str] = None
     producto_precioUnitario: Decimal = Field(..., gt=0)
     # Valores válidos: Cafetería, Restaurante, Repostería.
     producto_categoria: str = Field(..., max_length=50)
+    image_url: Optional[str] = None  # Campo para la imagen
 
     @validator('producto_categoria')
     def validar_categoria(cls, v):
@@ -20,7 +30,7 @@ class ProductoBase(BaseModel):
 
 # Todos los campos de ProductoBase que son obligatorios al crear un producto.
 class ProductoCreate(ProductoBase):
-    pass
+    alergeno_ids: Optional[List[int]] = None  # Permite asignar alérgenos en la creación
 
 
 class ProductoUpdate(BaseModel):
@@ -28,6 +38,8 @@ class ProductoUpdate(BaseModel):
     producto_descripcion: Optional[str] = None
     producto_precioUnitario: Optional[Decimal] = Field(None, gt=0)
     producto_categoria: Optional[str] = Field(None, max_length=50)
+    image_url: Optional[str] = None  # Permite actualizar la imagen
+    alergeno_ids: Optional[List[int]] = None  # Lista de IDs para actualizar alérgenos
 
     @validator('producto_categoria')
     def validar_categoria(cls, v):
@@ -46,6 +58,7 @@ class ProductoResponse(ProductoBase):
     # Campos calculados por disponibilidad_service, no existen en la BD.
     unidades_disponibles: int
     disponible: bool
+    alergenos: List[AlergenoResponse] = []  # Lista de alérgenos en la respuesta
 
     class Config:
         from_attributes = True

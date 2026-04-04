@@ -20,6 +20,10 @@ dependencies:
   # shared_preferences - Persiste preferencias del usuario entre sesiones
   # Usado por el TextScaleProvider para recordar el tamaño de texto elegido
   shared_preferences: ^2.2.2
+  # dependencias de la tarea 15 imagenes y supabase
+  supabase_flutter: ^2.3.0
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
 # DEPENDENCIAS DE DESARROLLO - Solo para desarrollo, no van en la app final
 dev_dependencies:
   # Herramientas de testing de Flutter

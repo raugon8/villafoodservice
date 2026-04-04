@@ -1,16 +1,11 @@
-// represents a product inside the cart
+// representa un producto individual dentro del carrito
 class cart_item {
   final int product_id;
   final String product_name;
   final double product_price;
   int quantity;
 
-  cart_item({
-    required this.product_id,
-    required this.product_name,
-    required this.product_price,
-    required this.quantity
-  });
+  cart_item({required this.product_id, required this.product_name, required this.product_price, required this.quantity});
 
   Map<String, dynamic> to_json() => {
     'product_id': product_id,
@@ -18,7 +13,7 @@ class cart_item {
   };
 }
 
-// full order with its details
+// pedido completo con todos sus detalles y estado
 class order {
   final int order_id;
   final String order_status;
@@ -26,13 +21,7 @@ class order {
   final DateTime order_date_time;
   final List<order_detail> details;
 
-  order({
-    required this.order_id,
-    required this.order_status,
-    required this.order_total,
-    required this.order_date_time,
-    required this.details
-  });
+  order({required this.order_id, required this.order_status, required this.order_total, required this.order_date_time, required this.details});
 
   factory order.from_json(Map<String, dynamic> json) {
     return order(
@@ -45,17 +34,13 @@ class order {
   }
 }
 
-// detail line of an order
+// linea de detalle de un pedido especifico
 class order_detail {
   final String product_name;
   final int detail_quantity;
   final double detail_subtotal;
 
-  order_detail({
-    required this.product_name,
-    required this.detail_quantity,
-    required this.detail_subtotal
-  });
+  order_detail({required this.product_name, required this.detail_quantity, required this.detail_subtotal});
 
   factory order_detail.from_json(Map<String, dynamic> json) {
     return order_detail(

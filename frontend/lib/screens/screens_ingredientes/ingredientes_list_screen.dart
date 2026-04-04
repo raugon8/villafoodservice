@@ -112,7 +112,7 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
               return Card(
                 child: ListTile(
                   title: Text(item.ingrediente_nombre),
-                  subtitle: Text('stock: ${item.ingrediente_stock_actual} ${item.ingrediente_unidad_medida}'),
+                  subtitle: Text('stock: ${item.ingrediente_stock_actual}, pesaje en: ${item.ingrediente_unidad_medida}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

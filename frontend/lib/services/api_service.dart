@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
+import '../models/alergeno_model.dart';
 
+// gestiona la autenticacion principal y recuperacion de roles
 class api_service {
   static const String base_url = 'http://localhost:8000';
 
-  // registro de usuario
+  // registra un nuevo cliente en el backend
   Future<user> register(String nombre, String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/register'),
@@ -20,10 +22,10 @@ class api_service {
         correo:         data['correo']
       );
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error en el registro');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error en el registro');
   }
 
-  // inicio de sesion
+  // valida credenciales y devuelve el usuario
   Future<user> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/login'),
@@ -38,10 +40,10 @@ class api_service {
         correo:         data['correo']
       );
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al iniciar sesión');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error al iniciar sesion');
   }
 
-  // obtener roles del usuario
+  // pide al backend los roles asignados al usuario autenticado
   Future<List<String>> get_user_roles(int user_id) async {
     final response = await http.get(
       Uri.parse('$base_url/usuarios/me/roles?user_id=$user_id'),
@@ -50,6 +52,37 @@ class api_service {
       final data = jsonDecode(response.body);
       return List<String>.from(data['roles']);
     }
-    throw Exception('Error al obtener roles');
+    throw Exception('error al obtener roles');
+  }
+
+  // llama al endpoint real de alérgenos del backend
+  Future<List<alergeno>> get_alergenos() async {
+    final response = await http.get(Uri.parse('$base_url/alergenos/'));
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
+      return data.map((a) => alergeno.from_json(a)).toList();
+    }
+    throw Exception('error al cargar alérgenos');
+  }
+
+  // mock obsoleto — se puede borrar cuando se confirme que get_alergenos() funciona
+  Future<List<alergeno>> get_alergenos_mock() async {
+    await Future.delayed(const Duration(seconds: 1));
+    return [
+      alergeno(id: 1, nombre: 'gluten'),
+      alergeno(id: 2, nombre: 'crustaceos'),
+      alergeno(id: 3, nombre: 'huevo'),
+      alergeno(id: 4, nombre: 'pescado'),
+      alergeno(id: 5, nombre: 'cacahuetes'),
+      alergeno(id: 6, nombre: 'soja'),
+      alergeno(id: 7, nombre: 'lacteos'),
+      alergeno(id: 8, nombre: 'frutos de cascara'),
+      alergeno(id: 9, nombre: 'apio'),
+      alergeno(id: 10, nombre: 'mostaza'),
+      alergeno(id: 11, nombre: 'sesamo'),
+      alergeno(id: 12, nombre: 'dioxido de azufre y sulfitos'),
+      alergeno(id: 13, nombre: 'altramuces'),
+      alergeno(id: 14, nombre: 'moluscos'),
+    ];
   }
 }

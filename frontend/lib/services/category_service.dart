@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/category_model.dart';
 
+// crud para las categorias del menu
 class category_service {
   static const String base_url = 'http://localhost:8000';
 
+  // lista categorias pudiendo filtrar las inactivas
   Future<List<category_model>> list_categories({bool active_only = true}) async {
     final response = await http.get(
       Uri.parse('$base_url/categories/?active_only=$active_only'),
@@ -13,9 +15,10 @@ class category_service {
       final List data = jsonDecode(response.body);
       return data.map((c) => category_model.from_json(c)).toList();
     }
-    throw Exception('Error al cargar categorías');
+    throw Exception('error al cargar categorias');
   }
 
+  // crea categoria exigiendo credenciales en la url
   Future<category_model> create_category(
     String name,
     String? description, {
@@ -30,9 +33,10 @@ class category_service {
     if (response.statusCode == 201) {
       return category_model.from_json(jsonDecode(response.body));
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al crear categoría');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error al crear categoria');
   }
 
+  // actualiza parcialmente una categoria (solo envia campos no nulos)
   Future<category_model> update_category(
     int id, {
     String? name,
@@ -54,9 +58,10 @@ class category_service {
     if (response.statusCode == 200) {
       return category_model.from_json(jsonDecode(response.body));
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'Error al actualizar categoría');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error al actualizar categoria');
   }
 
+  // marca la categoria como inactiva en lugar de borrarla
   Future<void> deactivate_category(
     int id, {
     required int user_id,
@@ -66,7 +71,7 @@ class category_service {
       Uri.parse('$base_url/categories/$id?user_id=$user_id&current_role=$current_role'),
     );
     if (response.statusCode != 204 && response.statusCode != 200) {
-      throw Exception('Error al desactivar categoría');
+      throw Exception('error al desactivar categoria');
     }
   }
 }
