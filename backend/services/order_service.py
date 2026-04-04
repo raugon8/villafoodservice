@@ -73,7 +73,7 @@ def create_order(db: Session, user_id: int, order_data) -> dict:
     """Crea un pedido: Valida el carrito, descuenta stock de ingredientes y guarda en BD.
     Usa rollback si cualquier paso falla."""
     try:
-        user = db.query(User).filter(User.usuario_ID == user_id).first()
+        user = db.query(User).filter(User.usuario_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
@@ -154,7 +154,7 @@ def list_orders(
 
     result = []
     for order in orders:
-        user = db.query(User).filter(User.usuario_ID == order.user_id).first()
+        user = db.query(User).filter(User.usuario_id == order.user_id).first()
         items_count = db.query(OrderDetailModel).filter(
             OrderDetailModel.order_id == order.order_id
         ).count()

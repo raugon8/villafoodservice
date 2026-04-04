@@ -36,7 +36,7 @@ def listar_pedidos_staff(
             matching_users = db.query(User).filter(
                 User.nombre_usuario.ilike(f"%{search}%")
             ).all()
-            user_ids = [u.usuario_ID for u in matching_users]
+            user_ids = [u.usuario_id for u in matching_users]
             query = query.filter(OrderModel.user_id.in_(user_ids))
 
     status_order = {"pendiente": 0, "en_preparacion": 1, "listo": 2}
@@ -48,7 +48,7 @@ def listar_pedidos_staff(
 
     result = []
     for order in orders:
-        user = db.query(User).filter(User.usuario_ID == order.user_id).first()
+        user = db.query(User).filter(User.usuario_id == order.user_id).first()
         items_count = db.query(OrderDetailModel).filter(
             OrderDetailModel.order_id == order.order_id
         ).count()
@@ -88,7 +88,7 @@ def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> di
     if order.order_service != service:
         raise HTTPException(status_code=403, detail="Este pedido no pertenece a tu servicio")
 
-    user = db.query(User).filter(User.usuario_ID == order.user_id).first()
+    user = db.query(User).filter(User.usuario_id == order.user_id).first()
     details = db.query(OrderDetailModel).filter(
         OrderDetailModel.order_id == order_id
     ).all()

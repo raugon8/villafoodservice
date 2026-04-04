@@ -1,4 +1,5 @@
 import os
+import bcrypt
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -104,25 +105,35 @@ def _seed_root(conn):
     """Crea el usuario administrador inicial si no existe."""
     root_email = 'root@villafoodservice.com'
     existing = conn.execute(
-        text("SELECT usuario_ID FROM usuarios WHERE correo = :email"),
+        text("SELECT usuario_id FROM usuarios WHERE correo = :email"),
         {"email": root_email}
     ).fetchone()
 
     if not existing:
-        hashed_password = pwd_context.hash('VillaFood2024!')
+        import bcrypt
+
+        # 1. Convertimos la contraseña a bytes (obligatorio para bcrypt)
+        password_bytes = 'VillaFood2024!'.encode('utf-8')
+
+        # 2. Generamos la sal y hasheamos (usando la librería bcrypt directamente)
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password_bytes, salt)
+
+        # 3. Lo decodificamos a string para guardarlo en la base de datos
+        hashed_password_str = hashed_password.decode('utf-8')
 
         conn.execute(
             text("""
-                INSERT INTO usuarios (nombre_usuario, correo, contraseña)
+                INSERT INTO usuarios (nombre_usuario, correo, contraseña) 
                 VALUES ('Root Admin', :email, :pwd)
             """),
-            {"email": root_email, "pwd": hashed_password}
+            {"email": root_email, "pwd": hashed_password_str}
         )
 
-        # Asignación de rol usando el nombre para evitar conflictos de ID
+        # Asignación de rol
         conn.execute(text("""
             INSERT INTO user_roles (user_id, role_id, role_active)
-            SELECT u.usuario_ID, r.role_id, TRUE
+            SELECT u.usuario_id, r.role_id, TRUE
             FROM usuarios u, roles r
             WHERE u.correo = :email AND r.role_name = 'admin'
         """), {"email": root_email})

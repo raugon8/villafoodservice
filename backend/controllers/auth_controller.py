@@ -38,14 +38,14 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         contraseña     = pwd_context.hash(user_data.contraseña)
     )
     db.add(new_user)
-    # flush() envía el INSERT a la BD sin confirmar, para generar el usuario_ID al que se le asignará el rol.
+    # flush() envía el INSERT a la BD sin confirmar, para generar el usuario_id al que se le asignará el rol.
     db.flush()
 
     # Todo usuario registrado recibe el rol 'cliente' por defecto.
     cliente_role = db.query(RoleModel).filter(RoleModel.role_name == "cliente").first()
     if cliente_role:
         db.add(UserRoleModel(
-            user_id     = new_user.usuario_ID,
+            user_id     = new_user.usuario_id,
             role_id     = cliente_role.role_id,
             role_active = True
         ))
@@ -54,7 +54,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return {
-        "usuario_ID":     new_user.usuario_ID,
+        "usuario_id":     new_user.usuario_id,
         "nombre_usuario": new_user.nombre_usuario,
         "correo":         new_user.correo,
         "roles":          ["cliente"]
@@ -78,12 +78,12 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
     # Obtiene los roles activos del usuario para devolverlos al frontend.
     active_roles = db.query(RoleModel).join(UserRoleModel).filter(
-        UserRoleModel.user_id == user.usuario_ID,
+        UserRoleModel.user_id == user.usuario_id,
         UserRoleModel.role_active == True
     ).all()
 
     return {
-        "usuario_ID":     user.usuario_ID,
+        "usuario_id":     user.usuario_id,
         "nombre_usuario": user.nombre_usuario,
         "correo":         user.correo,
         "roles":          [r.role_name for r in active_roles]

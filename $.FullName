@@ -22,7 +22,7 @@ def _build_user_response(db: Session, user: User) -> dict:
     """Construye el listado de respuesta de un usuario con sus roles activos.
     Se reutiliza en todas las funciones que devuelven un usuario."""
     active_roles = db.query(RoleModel).join(UserRoleModel).filter(
-        UserRoleModel.user_id == user.usuario_ID,
+        UserRoleModel.user_id == user.usuario_id,
         UserRoleModel.role_active == True
     ).all()
 
@@ -91,7 +91,7 @@ def obtener_usuario_por_id(db: Session, user_id: int) -> dict:
 
 def crear_usuario_admin(db: Session, usuario_data: UserCreateAdmin) -> dict:
     """Crea un usuario con sus roles asignados.
-    Usa flush() para obtener el usuario_id antes del commit, necesario para asignar los roles.
+    Usa flush() para obtener el.usuario_id antes del commit, necesario para asignar los roles.
     Usa rollback() porque crea usuario y roles en operaciones largas."""
     existing = db.query(User).filter(User.correo == usuario_data.usuario_email).first()
     if existing:
@@ -105,7 +105,7 @@ def crear_usuario_admin(db: Session, usuario_data: UserCreateAdmin) -> dict:
             contraseña     = hashed
         )
         db.add(new_user)
-        # flush() genera el usuario_id sin confirmar, necesario para asignar los roles a continuación.
+        # flush() genera el.usuario_id sin confirmar, necesario para asignar los roles a continuación.
         db.flush()
 
         for role_name in usuario_data.roles:

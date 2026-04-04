@@ -122,7 +122,7 @@ def demo_data(db: Session):
             rol = db.query(RoleModel).filter(RoleModel.role_name == rol_nombre).first()
             if rol:
                 db.add(UserRoleModel(
-                    user_id=usuario.usuario_ID,
+                    user_id=usuario.usuario_id,
                     role_id=rol.role_id,
                     role_active=True,
                 ))
