@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
-import '../models/alergeno_model.dart'; // importamos el nuevo modelo
+import '../models/alergeno_model.dart';
 
 // gestiona la autenticacion principal y recuperacion de roles
 class api_service {
@@ -55,7 +55,17 @@ class api_service {
     throw Exception('error al obtener roles');
   }
 
-  // simula la respuesta del backend para los alergenos europeos (tarea 15 borrarlo cuando lo tenga implementado Raul)
+  // llama al endpoint real de alérgenos del backend
+  Future<List<alergeno>> get_alergenos() async {
+    final response = await http.get(Uri.parse('$base_url/alergenos/'));
+    if (response.statusCode == 200) {
+      List data = jsonDecode(response.body);
+      return data.map((a) => alergeno.from_json(a)).toList();
+    }
+    throw Exception('error al cargar alérgenos');
+  }
+
+  // mock obsoleto — se puede borrar cuando se confirme que get_alergenos() funciona
   Future<List<alergeno>> get_alergenos_mock() async {
     await Future.delayed(const Duration(seconds: 1));
     return [

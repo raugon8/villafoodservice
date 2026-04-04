@@ -90,7 +90,8 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     # ================================================================
     main_sql = f"""
         SELECT p.producto_id, p.producto_nombre, p.producto_descripcion,
-               p.producto_precioUnitario, p.producto_categoria, p.producto_activo
+               p.producto_precioUnitario, p.producto_categoria, p.producto_activo,
+               p.image_url
         FROM productos p
         {where_clause}
         {order_clause}
@@ -102,7 +103,7 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     rows = db.execute(text(main_sql), params).fetchall()
 
     # ================================================================
-    # Añadir disponibilidad a cada producto.
+    # Añadir disponibilidad y alérgenos a cada producto.
     # ================================================================
     products = []
     for row in rows:
@@ -112,15 +113,28 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
         if filters.available_only and unidades == 0:
             continue
 
+        # Obtener alérgenos del producto desde la tabla intermedia
+        alergenos = db.execute(
+            text("""
+                SELECT a.alergeno_id, a.nombre
+                FROM alergenos a
+                JOIN producto_alergenos pa ON a.alergeno_id = pa.alergeno_id
+                WHERE pa.producto_id = :producto_id
+            """),
+            {"producto_id": producto_id}
+        ).fetchall()
+
         products.append({
-            "producto_id":           producto_id,
-            "producto_nombre":       row[1],
-            "producto_descripcion":  row[2],
+            "producto_id":             producto_id,
+            "producto_nombre":         row[1],
+            "producto_descripcion":    row[2],
             "producto_precioUnitario": row[3],
-            "producto_categoria":    row[4],
-            "producto_activo":       bool(row[5]),
-            "unidades_disponibles":  unidades,
-            "disponible":            unidades > 0,
+            "producto_categoria":      row[4],
+            "producto_activo":         bool(row[5]),
+            "image_url":               row[6],
+            "unidades_disponibles":    unidades,
+            "disponible":              unidades > 0,
+            "alergenos":               [{"alergeno_id": a[0], "nombre": a[1]} for a in alergenos],
         })
 
     return ProductSearchResponse(

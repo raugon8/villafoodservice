@@ -27,12 +27,12 @@ flutter run -d chrome
 
 El sistema crea automáticamente los siguientes usuarios la primera vez que arranca con la base de datos vacía.
 
-| Rol         | Usuario            | Contraseña   |
-|-------------|--------------------|--------------|
-| Admin       | root               | root1234     |
-| Cliente     | cliente_prueba     | cliente1234  |
-| Dependiente | dependiente_prueba | dep1234      |
-| Almacén     | almacen_prueba     | almacen1234  |
+| Rol         | Correo                    | Contraseña       |
+|-------------|---------------------------|------------------|
+| Admin       | root@villafoodservice.com | VillaFood2024!   |
+| Cliente     | cliente@demo.com          | cliente123       |
+| Dependiente | dependiente@demo.com      | dependiente123   |
+| Almacén     | almacen@demo.com          | almacen123       |
 
 > El seed se ejecuta automáticamente al arrancar el servidor si la base de datos está vacía. Ejecutarlo una segunda vez no duplica datos.
 
@@ -41,13 +41,13 @@ El sistema crea automáticamente los siguientes usuarios la primera vez que arra
 Al arrancar por primera vez se insertan automáticamente:
 - 3 servicios: Cafetería, Restaurante, Repostería
 - 8 categorías distribuidas entre los servicios
-- 8 ingredientes con stock inicial
+- 9 ingredientes con stock inicial
 - 12 productos listos para pedir
+- 14 alérgenos europeos de declaración obligatoria
 
 ## Build de Flutter Web
 
 Para compilar la app web apuntando al backend de producción:
-
 ```bash
 flutter build web --release \
   --dart-define=API_URL=https://<proyecto>.railway.app \
