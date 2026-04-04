@@ -25,7 +25,7 @@ class UserRoleModel(Base):
     __tablename__ = "user_roles"
 
     user_role_id      = Column(Integer, primary_key=True, autoincrement=True)
-    user_id           = Column(Integer, ForeignKey("usuarios.usuario_ID"), nullable=False)
+    user_id           = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=False)
     role_id           = Column(Integer, ForeignKey("roles.role_id"), nullable=False)
     # Fecha en que se asignó el rol al usuario.
     roles_assignation = Column(DateTime, default=datetime.now)

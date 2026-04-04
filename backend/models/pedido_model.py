@@ -9,7 +9,7 @@ class OrderModel(Base):
     __tablename__ = "orders"
 
     order_id        = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id         = Column(Integer, ForeignKey("usuarios.usuario_ID"), nullable=False)
+    user_id         = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=False)
     order_date_time = Column(DateTime, default=datetime.now, nullable=False)
     order_status    = Column(String(20), default="pendiente", nullable=False)
     order_total     = Column(Numeric(10, 2), nullable=False)
