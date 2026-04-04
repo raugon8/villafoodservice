@@ -1,6 +1,6 @@
 import '../../models/order_model.dart';
 
-// list item for staff order view
+// elemento de lista para la vista de pedidos del personal
 class order_staff_item {
   final int order_id;
   final String user_name;
@@ -36,22 +36,18 @@ class order_staff_item {
       order_notes:       json['order_notes'] ?? '',
       items_count:       json['items_count'] ?? 0,
       order_date_time:   DateTime.parse(json['order_date_time']),
-      order_pickup_time: json['order_pickup_time'] != null
-          ? DateTime.parse(json['order_pickup_time'])
-          : null,
-      details: (json['details'] as List?)
-          ?.map((d) => order_detail.from_json(d))
-          .toList() ?? [],
+      order_pickup_time: json['order_pickup_time'] != null ? DateTime.parse(json['order_pickup_time']) : null,
+      details: (json['details'] as List?)?.map((d) => order_detail.from_json(d)).toList() ?? [],
     );
   }
 
-  // returns color based on order status
+  // devuelve un codigo de color especifico segun el estado del pedido
   static getStatusColor(String status) {
     switch (status) {
-      case 'pendiente':      return 0xFFFF9800; // orange
-      case 'en_preparacion': return 0xFF2196F3; // blue
-      case 'listo':          return 0xFF4CAF50; // green
-      default:               return 0xFF9E9E9E; // grey
+      case 'pendiente':      return 0xFFFF9800;
+      case 'en_preparacion': return 0xFF2196F3;
+      case 'listo':          return 0xFF4CAF50;
+      default:               return 0xFF9E9E9E;
     }
   }
 }

@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/dashboard_model.dart';
 
+// conecta con el backend para extraer todas las metricas del panel
 class dashboard_service {
   static const String base_url = 'http://localhost:8000';
 
+  // construye la url con los filtros de fecha opcionales
   Future<DashboardData> get_stats({
     required int user_id,
     required String current_role,
@@ -21,6 +23,6 @@ class dashboard_service {
     if (response.statusCode == 200) {
       return DashboardData.from_json(jsonDecode(response.body));
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'error cargando estadísticas');
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error cargando estadisticas');
   }
 }

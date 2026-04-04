@@ -4,6 +4,7 @@ import '../../services/user_service.dart';
 import '../../models/role_model.dart';
 import '../../providers/auth_provider.dart';
 
+
 class user_management_screen extends StatefulWidget {
   const user_management_screen({super.key});
   @override
@@ -129,17 +130,21 @@ class _user_management_screen_state extends State<user_management_screen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Usuario creado correctamente'), backgroundColor: Colors.green)
                     );
-                  } else {
-                    // Actualizar roles
-                    await service_instancia.update_user_roles(
+                  }  else {
+                    // Actualizar usuario completo 
+                    await service_instancia.update_user(
                       usuario_id:   usuario.user_id,
                       user_id:      auth.user_id ?? 1,
                       current_role: 'admin',
+                      name:         name_ctrl.text, 
+                      email:        email_ctrl.text, 
                       roles:        roles_seleccionados,
                     );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Usuario actualizado'), backgroundColor: Colors.green)
-                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Usuario actualizado correctamente'), backgroundColor: Colors.green)
+                      );
+                    }
                   }
                   Navigator.pop(ctx);
                   _cargar_usuarios();
