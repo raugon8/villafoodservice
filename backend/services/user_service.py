@@ -5,14 +5,11 @@ backend/services/user_service.py
 """
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from passlib.context import CryptContext
+import bcrypt
 
 from backend.models.user_model import User
 from backend.models.role_model import RoleModel, UserRoleModel
 from backend.object_class.users import UserCreateAdmin, UserUpdate
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 # ============================================================================
 # HELPER
@@ -22,7 +19,7 @@ def _build_user_response(db: Session, user: User) -> dict:
     """Construye el listado de respuesta de un usuario con sus roles activos.
     Se reutiliza en todas las funciones que devuelven un usuario."""
     active_roles = db.query(RoleModel).join(UserRoleModel).filter(
-        UserRoleModel.user_id == user.usuario_ID,
+        UserRoleModel.user_id == user.usuario_id,
         UserRoleModel.role_active == True
     ).all()
 
@@ -98,7 +95,11 @@ def crear_usuario_admin(db: Session, usuario_data: UserCreateAdmin) -> dict:
         raise ValueError(f"Email '{usuario_data.usuario_email}' ya está registrado")
 
     try:
-        hashed = pwd_context.hash(usuario_data.usuario_password)
+        # Generar hash con bcrypt directamente
+        password_bytes = usuario_data.usuario_password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
         new_user = User(
             nombre_usuario = usuario_data.usuario_name + " " + usuario_data.usuario_surname,
             correo         = usuario_data.usuario_email,
@@ -150,7 +151,10 @@ def actualizar_usuario(db: Session, user_id: int, usuario_data: UserUpdate) -> d
         user.correo = usuario_data.usuario_email
 
     if usuario_data.usuario_password:
-        user.contraseña = pwd_context.hash(usuario_data.usuario_password)
+        # Generar hash con bcrypt directamente
+        password_bytes = usuario_data.usuario_password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        user.contraseña = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
     if usuario_data.roles is not None:
         # Desactiva todos los roles actuales antes de asignar los nuevos.

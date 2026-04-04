@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
+import bcrypt
 from backend.database_manager.database import get_db
 from backend.models.user_model import User
 from backend.models.role_model import RoleModel, UserRoleModel
@@ -8,10 +8,6 @@ from pydantic import BaseModel
 
 # Agrupa los endpoints de autenticación. Se registra en main.py con include_router.
 router = APIRouter()
-
-# Gestor de cifrado de contraseñas con bcrypt (contraseñas no se guardan en texto plano)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 # Schema para el registro: nombre, correo y contraseña.
 class UserCreate(BaseModel):
@@ -32,10 +28,15 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if existe:
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
+    # Hasheamos la contraseña directamente con bcrypt
+    password_bytes = user_data.contraseña.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
     new_user = User(
         nombre_usuario = user_data.nombre_usuario,
         correo         = user_data.correo,
-        contraseña     = pwd_context.hash(user_data.contraseña)
+        contraseña     = hashed_password
     )
     db.add(new_user)
     # flush() envía el INSERT a la BD sin confirmar, para generar el usuario_id al que se le asignará el rol.
@@ -67,9 +68,11 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    # Verifica la contraseña con bcryp, si falla porque hay usuarios con contraseña en texto plano, compara directamente.
+    # Verifica la contraseña con bcrypt, si falla porque hay usuarios con contraseña en texto plano, compara directamente.
     try:
-        password_ok = pwd_context.verify(user_data.contraseña, user.contraseña)
+        plain_bytes = user_data.contraseña.encode('utf-8')
+        hash_bytes = user.contraseña.encode('utf-8')
+        password_ok = bcrypt.checkpw(plain_bytes, hash_bytes)
     except Exception:
         password_ok = (user.contraseña == user_data.contraseña)
 

@@ -3,7 +3,6 @@ import bcrypt
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from passlib.context import CryptContext
 
 # 1. Configuración de la Variable de Entorno
 # Usamos el nombre exacto que tienes en Railway
@@ -31,9 +30,6 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-# Contexto de seguridad global
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def init_db():
@@ -110,10 +106,9 @@ def _seed_root(conn):
     ).fetchone()
 
     if not existing:
-        import bcrypt
-
         # 1. Convertimos la contraseña a bytes (obligatorio para bcrypt)
         password_bytes = 'VillaFood2024!'.encode('utf-8')
+
 
         # 2. Generamos la sal y hasheamos (usando la librería bcrypt directamente)
         salt = bcrypt.gensalt()
