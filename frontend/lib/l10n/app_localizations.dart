@@ -1423,6 +1423,60 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'cantidad: '**
   String get ord_det_qty;
+
+  /// No description provided for @hist_title.
+  ///
+  /// In es, this message translates to:
+  /// **'historial de pedidos'**
+  String get hist_title;
+
+  /// No description provided for @hist_empty.
+  ///
+  /// In es, this message translates to:
+  /// **'todavia no has realizado ningun pedido'**
+  String get hist_empty;
+
+  /// No description provided for @hist_btn_repeat.
+  ///
+  /// In es, this message translates to:
+  /// **'repetir pedido'**
+  String get hist_btn_repeat;
+
+  /// No description provided for @hist_snack_added.
+  ///
+  /// In es, this message translates to:
+  /// **'se han añadido {count} productos a tu carrito'**
+  String hist_snack_added(String count);
+
+  /// No description provided for @hist_dialog_some_unavail_title.
+  ///
+  /// In es, this message translates to:
+  /// **'algunos productos no estan disponibles:'**
+  String get hist_dialog_some_unavail_title;
+
+  /// No description provided for @hist_dialog_some_unavail_desc.
+  ///
+  /// In es, this message translates to:
+  /// **'se añadiran al carrito el resto de productos. ¿continuar?'**
+  String get hist_dialog_some_unavail_desc;
+
+  /// No description provided for @hist_btn_add_avail.
+  ///
+  /// In es, this message translates to:
+  /// **'añadir disponibles'**
+  String get hist_btn_add_avail;
+
+  /// No description provided for @hist_dialog_none_avail_title.
+  ///
+  /// In es, this message translates to:
+  /// **'pedido no disponible'**
+  String get hist_dialog_none_avail_title;
+
+  /// No description provided for @hist_dialog_none_avail_desc.
+  ///
+  /// In es, this message translates to:
+  /// **'no se puede repetir este pedido porque ninguno de sus productos esta disponible actualmente.'**
+  String get hist_dialog_none_avail_desc;
 }
 
 class _AppLocalizationsDelegate

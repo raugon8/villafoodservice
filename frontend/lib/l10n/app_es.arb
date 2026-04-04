@@ -220,5 +220,21 @@
   "ord_det_total": "total: €",
   "ord_det_notes_title": "notas del cliente",
   "ord_det_products_title": "productos",
-  "ord_det_qty": "cantidad: "
+  "ord_det_qty": "cantidad: ",
+  "hist_title": "historial de pedidos",
+  "hist_empty": "todavia no has realizado ningun pedido",
+  "hist_btn_repeat": "repetir pedido",
+  "hist_snack_added": "se han añadido {count} productos a tu carrito",
+  "@hist_snack_added": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "hist_dialog_some_unavail_title": "algunos productos no estan disponibles:",
+  "hist_dialog_some_unavail_desc": "se añadiran al carrito el resto de productos. ¿continuar?",
+  "hist_btn_add_avail": "añadir disponibles",
+  "hist_dialog_none_avail_title": "pedido no disponible",
+  "hist_dialog_none_avail_desc": "no se puede repetir este pedido porque ninguno de sus productos esta disponible actualmente."
 }
