@@ -18,7 +18,7 @@ class api_service {
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
       return user(
-        usuario_id:     data['usuario_ID'],
+        usuario_id:     data['usuario_id'],
         nombre_usuario: data['nombre_usuario'],
         correo:         data['correo']
       );
@@ -36,7 +36,7 @@ class api_service {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return user(
-        usuario_id:     data['usuario_ID'],
+        usuario_id:     data['usuario_id'],
         nombre_usuario: data['nombre_usuario'],
         correo:         data['correo']
       );
