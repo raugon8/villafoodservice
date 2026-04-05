@@ -1,10 +1,11 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/order_staff_model.dart';
 
 // gestiona los pedidos desde la perspectiva de cocina o mostrador
 class order_staff_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // lista los pedidos filtrando por servicio (cafeteria, restaurante...) y estado
   Future<List<order_staff_item>> list_staff_orders(
@@ -62,3 +63,4 @@ class order_staff_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error actualizando estado');
   }
 }
+

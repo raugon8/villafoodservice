@@ -1,3 +1,4 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
@@ -5,7 +6,7 @@ import '../models/alergeno_model.dart';
 
 // gestiona la autenticacion principal y recuperacion de roles
 class api_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // registra un nuevo cliente en el backend
   Future<user> register(String nombre, String email, String password) async {
@@ -86,3 +87,4 @@ class api_service {
     ];
   }
 }
+

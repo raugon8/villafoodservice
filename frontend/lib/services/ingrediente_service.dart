@@ -1,10 +1,11 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/ingrediente.dart';
 
 // logica de red para el crud del inventario
 class ingrediente_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // obtiene todo el stock actual
   Future<List<ingrediente>> get_ingredientes({required int user_id, required String current_role}) async {
@@ -56,3 +57,4 @@ class ingrediente_service {
     }
   }
 }
+

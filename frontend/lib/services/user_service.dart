@@ -1,10 +1,11 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/role_model.dart';
 
 // conexion con el backend para la gestion de usuarios
 class user_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // lista usuarios requiriendo permisos de admin
   Future<List<user_with_roles>> list_users({int user_id = 1, String current_role = 'admin'}) async {
@@ -92,3 +93,4 @@ class user_service {
     throw Exception(error['detail'] ?? 'error al actualizar usuario');
   }
 }
+

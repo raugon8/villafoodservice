@@ -1,10 +1,11 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/category_model.dart';
 
 // crud para las categorias del menu
 class category_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // lista categorias pudiendo filtrar las inactivas
   Future<List<category_model>> list_categories({bool active_only = true}) async {
@@ -75,3 +76,4 @@ class category_service {
     }
   }
 }
+

@@ -1,3 +1,4 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/producto.dart';
@@ -5,7 +6,7 @@ import '../models/producto_ingrediente.dart';
 
 // conexion principal para el crud de productos y sus recetas
 class producto_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // lista todos los productos sin filtros
   Future<List<producto>> get_productos() async {
@@ -109,3 +110,4 @@ class producto_service {
     if (response.statusCode != 200 && response.statusCode != 204) throw Exception(jsonDecode(response.body)['detail'] ?? 'error al quitar ingrediente');
   }
 }
+

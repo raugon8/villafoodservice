@@ -1,10 +1,11 @@
+import '../config/app_constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/order_model.dart';
 
 // maneja el proceso de compra desde la perspectiva del cliente
 class order_service {
-  static const String base_url = 'http://localhost:8000';
+  static const String base_url = AppConstants.apiUrl;
 
   // comprueba stock y precios antes de confirmar el pago
   Future<bool> validate_cart(List<cart_item> items, {required int user_id, required String current_role}) async {
@@ -43,3 +44,4 @@ class order_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error cargando pedidos');
   }
 }
+

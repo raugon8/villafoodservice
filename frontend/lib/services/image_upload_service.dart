@@ -1,3 +1,4 @@
+import '../config/app_constants.dart';
 import 'package:image_picker/image_picker.dart';
 
 // servicio de simulacion para la subida de imagenes
@@ -20,3 +21,4 @@ class image_upload_service {
     }
   }
 }
+
