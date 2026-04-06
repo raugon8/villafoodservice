@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import bcrypt
+import jwt
+from datetime import datetime, timedelta
 from backend.database_manager.database import get_db
 from backend.models.user_model import User
 from backend.models.role_model import RoleModel, UserRoleModel
 from pydantic import BaseModel, validator
 
-# Agrupa los endpoints de autenticación. Se registra en main.py con include_router.
+# Configuración del Cifrado
+SECRET_KEY = "VillaFood_Super_Secret_Key_Change_Me_Later"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # El token durará 7 días
+
 router = APIRouter()
 
-# Schema para el registro: nombre, correo y contraseña.
+
 class UserCreate(BaseModel):
     nombre_usuario: str
     correo: str
@@ -28,7 +34,6 @@ class UserCreate(BaseModel):
         return v
 
 
-# Schema para el login: solo necesita correo y contraseña.
 class UserLogin(BaseModel):
     correo: str
     contraseña: str
@@ -40,37 +45,34 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if existe:
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
-    # Hasheamos la contraseña directamente con bcrypt
     password_bytes = user_data.contraseña.encode('utf-8')
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
     new_user = User(
-        nombre_usuario = user_data.nombre_usuario,
-        correo         = user_data.correo,
-        contraseña     = hashed_password
+        nombre_usuario=user_data.nombre_usuario,
+        correo=user_data.correo,
+        contraseña=hashed_password
     )
     db.add(new_user)
-    # flush() envía el INSERT a la BD sin confirmar, para generar el usuario_id al que se le asignará el rol.
     db.flush()
 
-    # Todo usuario registrado recibe el rol 'cliente' por defecto.
     cliente_role = db.query(RoleModel).filter(RoleModel.role_name == "cliente").first()
     if cliente_role:
         db.add(UserRoleModel(
-            user_id     = new_user.usuario_id,
-            role_id     = cliente_role.role_id,
-            role_active = True
+            user_id=new_user.usuario_id,
+            role_id=cliente_role.role_id,
+            role_active=True
         ))
 
     db.commit()
     db.refresh(new_user)
 
     return {
-        "usuario_id":     new_user.usuario_id,
+        "usuario_id": new_user.usuario_id,
         "nombre_usuario": new_user.nombre_usuario,
-        "correo":         new_user.correo,
-        "roles":          ["cliente"]
+        "correo": new_user.correo,
+        "roles": ["cliente"]
     }
 
 
@@ -80,7 +82,6 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    # Verifica la contraseña con bcrypt, si falla porque hay usuarios con contraseña en texto plano, compara directamente.
     try:
         plain_bytes = user_data.contraseña.encode('utf-8')
         hash_bytes = user.contraseña.encode('utf-8')
@@ -91,15 +92,23 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     if not password_ok:
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
-    # Obtiene los roles activos del usuario para devolverlos al frontend.
     active_roles = db.query(RoleModel).join(UserRoleModel).filter(
         UserRoleModel.user_id == user.usuario_id,
         UserRoleModel.role_active == True
     ).all()
 
+    roles_list = [r.role_name for r in active_roles]
+
+    # --- GENERACIÓN DEL TOKEN JWT ---
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"sub": str(user.usuario_id), "roles": roles_list, "exp": expire}
+    access_token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
     return {
-        "usuario_id":     user.usuario_id,
+        "usuario_id": user.usuario_id,
         "nombre_usuario": user.nombre_usuario,
-        "correo":         user.correo,
-        "roles":          [r.role_name for r in active_roles]
+        "correo": user.correo,
+        "roles": roles_list,
+        "access_token": access_token,
+        "token_type": "bearer"
     }

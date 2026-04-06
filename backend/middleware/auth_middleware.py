@@ -1,36 +1,36 @@
-from fastapi import HTTPException
-from functools import wraps
-from backend.database_manager.database import SessionLocal
-from backend.models.role_model import RoleModel, UserRoleModel
+from fastapi import HTTPException, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
 
-# Decorador que restringe el acceso a un endpoint según el rol del usuario.
-# Se usa encima de las funciones de los controllers: @RequireRole(["admin", "dependiente"])
+# Configuración del Cifrado (Debe coincidir con auth_controller.py)
+SECRET_KEY = "VillaFood_Super_Secret_Key_Change_Me_Later"
+ALGORITHM = "HS256"
+
+# Le dice a FastAPI que busque el token en el Header "Authorization: Bearer <token>"
+security = HTTPBearer()
+
 def RequireRole(allowed_roles: list):
-    def Decorator(func):
-        @wraps(func)
-        async def Wrapper(*args, **kwargs):
-            # Obtener user_id y rol activo de los query params de la petición
-            user_id      = kwargs.get("user_id")
-            current_role = kwargs.get("current_role")
+    """
+    Dependencia de FastAPI que intercepta la petición, verifica el token JWT,
+    comprueba los permisos y devuelve el user_id de forma segura.
+    """
+    def role_checker(credentials: HTTPAuthorizationCredentials = Security(security)) -> int:
+        token = credentials.credentials
+        try:
+            # Desencriptamos el token. Si fue alterado, esto lanza un error automáticamente.
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = int(payload.get("sub"))
+            token_roles = payload.get("roles", [])
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="El token ha expirado. Vuelve a iniciar sesión.")
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Token inválido o manipulado.")
 
-            if not user_id or not current_role:
-                raise HTTPException(status_code=401, detail="Credenciales no proporcionadas")
+        # Verificamos si el usuario tiene al menos un rol de los permitidos para esta ruta
+        if not any(role in allowed_roles for role in token_roles):
+            raise HTTPException(status_code=403, detail="No tienes permisos para esta acción.")
 
-            db = SessionLocal()
-            try:
-                # Verificar que el usuario tiene el rol activo y que ese rol está entre los permitidos
-                has_access = db.query(RoleModel).join(UserRoleModel).filter(
-                    UserRoleModel.user_id == user_id,
-                    RoleModel.role_name == current_role,
-                    UserRoleModel.role_active == True,
-                    RoleModel.role_name.in_(allowed_roles)
-                ).first()
+        # Devolvemos el ID real y verificado.
+        return user_id
 
-                if not has_access:
-                    raise HTTPException(status_code=403, detail="No tienes permisos para esta accion")
-            finally:
-                db.close()
-
-            return await func(*args, **kwargs)
-        return Wrapper
-    return Decorator
+    return role_checker
