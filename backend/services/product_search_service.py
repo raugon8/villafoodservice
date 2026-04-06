@@ -18,7 +18,7 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     params = {}
 
     if filters.active_only:
-        conditions.append("p.producto_activo = 1")
+        conditions.append("p.producto_activo = TRUE")
 
     if filters.search_query:
         # Busca en nombre, descripción y nombre de ingredientes del producto.

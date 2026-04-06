@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from decimal import Decimal
 
@@ -20,13 +20,6 @@ class ProductoBase(BaseModel):
     producto_categoria: str = Field(..., max_length=50)
     image_url: Optional[str] = None  # Campo para la imagen
 
-    @validator('producto_categoria')
-    def validar_categoria(cls, v):
-        categorias_validas = ['Cafetería', 'Restaurante', 'Repostería']
-        if v not in categorias_validas:
-            raise ValueError(f'Categoría debe ser una de: {categorias_validas}')
-        return v
-
 
 # Todos los campos de ProductoBase que son obligatorios al crear un producto.
 class ProductoCreate(ProductoBase):
@@ -40,16 +33,6 @@ class ProductoUpdate(BaseModel):
     producto_categoria: Optional[str] = Field(None, max_length=50)
     image_url: Optional[str] = None  # Permite actualizar la imagen
     alergeno_ids: Optional[List[int]] = None  # Lista de IDs para actualizar alérgenos
-
-    @validator('producto_categoria')
-    def validar_categoria(cls, v):
-        # El if v is not None es necesario por si el campo es opcional.
-        # Sin él, no mandar categoría lanzaría un error de validación innecesario.
-        if v is not None:
-            categorias_validas = ['Cafetería', 'Restaurante', 'Repostería']
-            if v not in categorias_validas:
-                raise ValueError(f'Categoría debe ser una de: {categorias_validas}')
-        return v
 
 
 class ProductoResponse(ProductoBase):
