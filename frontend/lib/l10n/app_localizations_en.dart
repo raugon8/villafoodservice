@@ -670,4 +670,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ord_det_qty => 'quantity: ';
+
+  @override
+  String get hist_title => 'order history';
+
+  @override
+  String get hist_empty => 'you have not placed any orders yet';
+
+  @override
+  String get hist_btn_repeat => 'repeat order';
+
+  @override
+  String hist_snack_added(String count) {
+    return '$count products have been added to your cart';
+  }
+
+  @override
+  String get hist_dialog_some_unavail_title =>
+      'some products are not available:';
+
+  @override
+  String get hist_dialog_some_unavail_desc =>
+      'the rest of the products will be added to the cart. continue?';
+
+  @override
+  String get hist_btn_add_avail => 'add available';
+
+  @override
+  String get hist_dialog_none_avail_title => 'order unavailable';
+
+  @override
+  String get hist_dialog_none_avail_desc =>
+      'this order cannot be repeated because none of its products are currently available.';
 }

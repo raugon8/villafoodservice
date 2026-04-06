@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/text_scale_toggle.dart';
 import '../../screens/screens_auth/role_selector_screen.dart';
@@ -9,16 +8,21 @@ import '../../screens/screens_auth/login_screen.dart';
 import '../../screens/screens_ingredientes/ingredientes_list_screen.dart';
 import '../../screens/screens_productos/productos_list_screen.dart';
 import '../../screens/screens_client/cart_screen.dart';
-import '../../screens/screens_client/orders_screen.dart';
 import '../../screens/screens_client/catalog_screen.dart';
+import '../../screens/screens_client/historial_screen.dart';
 import '../../screens/screens_staff/order_list_screen.dart';
 import '../../screens/admin/dashboard_screen.dart';
 import '../../screens/admin/category_management_screen.dart';
 import '../../screens/admin/user_management_screen.dart';
 
+/// pantalla principal que filtra opciones segun el rol del usuario
 class home_screen extends StatelessWidget {
   const home_screen({super.key});
 
+  /// formatea el nombre del rol para mostrarlo en la interfaz
+  ///
+  /// args:
+  ///   rol (String?): el rol actual del usuario en formato de base de datos
   String _rol_display(String? rol, AppLocalizations loc) {
     switch (rol) {
       case 'admin':       return loc.home_rol_admin;
@@ -33,8 +37,6 @@ class home_screen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Provider.of<auth_provider>(context);
     final loc = AppLocalizations.of(context)!;
-    final locale_prov = Provider.of<locale_provider>(context);
-    final is_spanish = locale_prov.locale.languageCode == 'es';
     final String? rol = auth.current_role;
 
     return Scaffold(
@@ -50,11 +52,6 @@ class home_screen extends StatelessWidget {
           ],
         ),
         actions: [
-          // Bandera de idiomas
-          IconButton(
-            icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
-            onPressed: () => locale_prov.toggle_locale(),
-          ),
           const text_scale_toggle(),
           
           if (auth.available_roles.length > 1)
@@ -62,7 +59,8 @@ class home_screen extends StatelessWidget {
               icon: const Icon(Icons.swap_horiz),
               tooltip: loc.home_cambiar_rol,
               onPressed: () => Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (c) => const role_selector_screen())
+                context,
+                MaterialPageRoute(builder: (c) => const role_selector_screen())
               ),
             ),
           
@@ -72,7 +70,9 @@ class home_screen extends StatelessWidget {
             onPressed: () {
               auth.logout();
               Navigator.pushAndRemoveUntil(
-                context, MaterialPageRoute(builder: (c) => const login_screen()), (route) => false,
+                context,
+                MaterialPageRoute(builder: (c) => const login_screen()),
+                (route) => false,
               );
             },
           ),
@@ -87,14 +87,19 @@ class home_screen extends StatelessWidget {
             _crear_boton(context, Icons.people, loc.home_btn_usuarios, loc.home_desc_usuarios, const user_management_screen()),
             _crear_boton(context, Icons.category, loc.home_btn_categorias, loc.home_desc_categorias, const category_management_screen()),
           ],
+          
           if (rol == 'admin' || rol == 'almacen')
             _crear_boton(context, Icons.kitchen, loc.home_btn_ingredientes, loc.home_desc_ingredientes, const ingredientes_list_screen()),
+          
           if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
             _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
           
+          // el cliente siempre ve estos botones
           _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
           _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
-          _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const orders_screen()),
+          
+          // conectamos el boton de pedidos a la nueva pantalla de historial
+          _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
           
           if (rol == 'admin' || rol == 'dependiente')
             _crear_boton(context, Icons.assignment, loc.home_btn_staff, loc.home_desc_staff, const order_list_screen()),
@@ -103,6 +108,14 @@ class home_screen extends StatelessWidget {
     );
   }
 
+  /// construye botones con soporte para lectores de pantalla
+  ///
+  /// args:
+  ///   context (BuildContext): el arbol de widgets actual
+  ///   icono (IconData): icono visual del boton
+  ///   texto (String): titulo corto del boton
+  ///   label_accesibilidad (String): descripcion larga para el lector de pantalla
+  ///   pantalla (Widget): pantalla destino a la que navega
   Widget _crear_boton(BuildContext context, IconData icono, String texto, String label_accesibilidad, Widget pantalla) {
     return Semantics(
       label: label_accesibilidad,

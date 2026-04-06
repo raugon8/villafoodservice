@@ -220,5 +220,21 @@
   "ord_det_total": "total: €",
   "ord_det_notes_title": "customer notes",
   "ord_det_products_title": "products",
-  "ord_det_qty": "quantity: "
+  "ord_det_qty": "quantity: ",
+  "hist_title": "order history",
+  "hist_empty": "you have not placed any orders yet",
+  "hist_btn_repeat": "repeat order",
+  "hist_snack_added": "{count} products have been added to your cart",
+  "@hist_snack_added": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "hist_dialog_some_unavail_title": "some products are not available:",
+  "hist_dialog_some_unavail_desc": "the rest of the products will be added to the cart. continue?",
+  "hist_btn_add_avail": "add available",
+  "hist_dialog_none_avail_title": "order unavailable",
+  "hist_dialog_none_avail_desc": "this order cannot be repeated because none of its products are currently available."
 }
