@@ -69,4 +69,3 @@ class order_service {
     }
   }
 }
-

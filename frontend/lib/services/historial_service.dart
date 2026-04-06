@@ -14,19 +14,13 @@ class historial_service {
   /// args:
   ///   user_id (int): el identificador unico del cliente
   ///   current_role (String): el rol con el que actua (debe ser cliente)
-  Future<List<order>> get_historial(int user_id, String current_role) async {
-    final url = Uri.parse('$base_url/pedidos/historial');
-    final response = await http.get(
-      url,
-      headers: {
-        'x-user-id': user_id.toString(),
-        'x-user-role': current_role,
-      },
-    );
+  Future<List<historial_pedido>> get_historial(int user_id, String current_role) async {
+    final url = Uri.parse('$base_url/pedidos/historial?user_id=$user_id&current_role=$current_role');
+    final response = await http.get(url);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => order.from_json(json)).toList();
+      return data.map((json) => historial_pedido.from_json(json)).toList();
     } else {
       throw Exception('no se pudo cargar el historial');
     }
@@ -39,14 +33,8 @@ class historial_service {
   ///   user_id (int): el identificador unico del cliente
   ///   current_role (String): el rol con el que actua (debe ser cliente)
   Future<Map<String, dynamic>> repetir_pedido(int pedido_id, int user_id, String current_role) async {
-    final url = Uri.parse('$base_url/pedidos/repetir/$pedido_id');
-    final response = await http.post(
-      url,
-      headers: {
-        'x-user-id': user_id.toString(),
-        'x-user-role': current_role,
-      },
-    );
+    final url = Uri.parse('$base_url/pedidos/repetir/$pedido_id?user_id=$user_id&current_role=$current_role');
+    final response = await http.post(url);
 
     if (response.statusCode == 200) {
       return json.decode(response.body);

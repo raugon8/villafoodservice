@@ -9,7 +9,9 @@ from backend.object_class.orders import (
     OrderListResponse,
     OrderStatusUpdate,
     OrderStaffResponse,
-    ValidatedCartItemResponse
+    ValidatedCartItemResponse,
+    HistorialPedido,
+    RepetirPedidoResponse
 )
 from backend.services import order_service, order_staff_service
 from backend.database_manager.database import get_db
@@ -59,6 +61,29 @@ def list_orders(
     """Lista pedidos con filtros opcionales de usuario y estado."""
     RequireRole(["cliente", "admin"])
     return order_service.list_orders(db, user_id, status, skip, limit)
+
+
+@router.get("/historial", response_model=List[HistorialPedido])
+def get_historial(
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Devuelve todos los pedidos anteriores del cliente autenticado, del más reciente al más antiguo."""
+    RequireRole(["cliente"])
+    return order_service.obtener_historial(db, user_id)
+
+
+@router.post("/repetir/{pedido_id}", response_model=RepetirPedidoResponse)
+def repetir_pedido(
+    pedido_id: int,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Comprueba si los productos de un pedido anterior siguen disponibles para volver a añadirlos al carrito."""
+    RequireRole(["cliente"])
+    return order_service.repetir_pedido(db, pedido_id, user_id)
 
 
 # ============================================================================

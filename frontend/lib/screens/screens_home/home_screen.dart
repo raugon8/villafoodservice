@@ -98,8 +98,9 @@ class home_screen extends StatelessWidget {
           _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
           _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
           
-          // conectamos el boton de pedidos a la nueva pantalla de historial
-          _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
+          // conectamos el boton de pedidos a la nueva pantalla de historial, solo visible para clientes
+          if (rol == 'cliente')
+            _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
           
           if (rol == 'admin' || rol == 'dependiente')
             _crear_boton(context, Icons.assignment, loc.home_btn_staff, loc.home_desc_staff, const order_list_screen()),

@@ -18,7 +18,7 @@ class historial_screen extends StatefulWidget {
 
 class _historial_screen_state extends State<historial_screen> {
   final _service = historial_service();
-  late Future<List<order>> _pedidos_future;
+  late Future<List<historial_pedido>> _pedidos_future;
   bool _loading_repetir = false;
 
   @override
@@ -39,17 +39,21 @@ class _historial_screen_state extends State<historial_screen> {
   }
 
   /// inyecta los productos viables directamente en la cesta global de la app
+  /// respeta la cantidad original del pedido llamando add_item tantas veces como unidades habia
   ///
   /// args:
   ///   disponibles (List<dynamic>): lista de productos que han superado el filtro de stock
   ///   loc (AppLocalizations): diccionario de idiomas activo para los mensajes
   void _anadir_al_carrito(List<dynamic> disponibles, AppLocalizations loc) {
     for (var prod in disponibles) {
-      cart_manager.add_item(
-        prod['producto_id'],
-        prod['nombre'],
-        (prod['precio_unitario'] as num).toDouble(),
-      );
+      final int cantidad = (prod['cantidad'] as num).toInt();
+      for (int i = 0; i < cantidad; i++) {
+        cart_manager.add_item(
+          prod['producto_id'],
+          prod['nombre'],
+          (prod['precio_unitario'] as num).toDouble(),
+        );
+      }
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -69,8 +73,8 @@ class _historial_screen_state extends State<historial_screen> {
     try {
       final auth = Provider.of<auth_provider>(context, listen: false);
       final response = await _service.repetir_pedido(
-        pedido_id, 
-        auth.user_id ?? 1, 
+        pedido_id,
+        auth.user_id ?? 1,
         auth.current_role ?? 'cliente'
       );
 
@@ -151,7 +155,7 @@ class _historial_screen_state extends State<historial_screen> {
       ),
       body: Stack(
         children: [
-          FutureBuilder<List<order>>(
+          FutureBuilder<List<historial_pedido>>(
             future: _pedidos_future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -179,20 +183,20 @@ class _historial_screen_state extends State<historial_screen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('${loc.ord_det_order}${item.order_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Chip(label: Text(item.order_status, style: const TextStyle(fontSize: 12))),
+                              Text('${loc.ord_det_order}${item.pedido_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Chip(label: Text(item.estado, style: const TextStyle(fontSize: 12))),
                             ],
                           ),
                           const SizedBox(height: 8),
                           // lista de productos resumida
-                          Text('${item.details.length} ${loc.ord_det_products_title}', style: const TextStyle(color: Colors.grey)),
+                          Text('${item.productos.length} ${loc.ord_det_products_title}', style: const TextStyle(color: Colors.grey)),
                           const Divider(),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('${loc.ord_det_total}${item.order_total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                              Text('${loc.ord_det_total}${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                               ElevatedButton.icon(
-                                onPressed: () => _procesar_repeticion(item.order_id, loc),
+                                onPressed: () => _procesar_repeticion(item.pedido_id, loc),
                                 icon: const Icon(Icons.replay),
                                 label: Text(loc.hist_btn_repeat),
                               ),
@@ -206,7 +210,7 @@ class _historial_screen_state extends State<historial_screen> {
               );
             },
           ),
-          
+
           // capa de carga semitransparente que bloquea la pantalla mientras procesa la repeticion
           if (_loading_repetir)
             Container(

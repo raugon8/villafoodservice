@@ -50,3 +50,43 @@ class order_detail {
     );
   }
 }
+
+// producto dentro del historial de un pedido anterior
+class historial_producto {
+  final int producto_id;
+  final String nombre;
+  final int cantidad;
+  final double precio_unitario;
+
+  historial_producto({required this.producto_id, required this.nombre, required this.cantidad, required this.precio_unitario});
+
+  factory historial_producto.from_json(Map<String, dynamic> json) {
+    return historial_producto(
+      producto_id:     json['producto_id'],
+      nombre:          json['nombre'] ?? '',
+      cantidad:        json['cantidad'],
+      precio_unitario: double.parse(json['precio_unitario'].toString()),
+    );
+  }
+}
+
+// pedido del historial del cliente con formato del endpoint /pedidos/historial
+class historial_pedido {
+  final int pedido_id;
+  final DateTime fecha;
+  final String estado;
+  final double total;
+  final List<historial_producto> productos;
+
+  historial_pedido({required this.pedido_id, required this.fecha, required this.estado, required this.total, required this.productos});
+
+  factory historial_pedido.from_json(Map<String, dynamic> json) {
+    return historial_pedido(
+      pedido_id: json['pedido_id'],
+      fecha:     DateTime.parse(json['fecha']),
+      estado:    json['estado'],
+      total:     double.parse(json['total'].toString()),
+      productos: (json['productos'] as List?)?.map((p) => historial_producto.from_json(p)).toList() ?? [],
+    );
+  }
+}
