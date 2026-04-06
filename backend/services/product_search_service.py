@@ -27,8 +27,8 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
             OR p.producto_descripcion LIKE :search
             OR EXISTS (
                 SELECT 1 FROM productos_ingredientes pi
-                JOIN ingredientes i ON pi.productoIngrediente_ingredienteId = i.ingrediente_id
-                WHERE pi.productoIngrediente_productoId = p.producto_id
+                JOIN ingredientes i ON pi."productoIngrediente_ingredienteId" = i.ingrediente_id
+                WHERE pi."productoIngrediente_productoId" = p.producto_id
                 AND i.ingrediente_nombre LIKE :search
             )
         )""")
@@ -47,11 +47,11 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
         params["category_id"] = filters.category_id
 
     if filters.min_price is not None:
-        conditions.append("p.producto_precioUnitario >= :min_price")
+        conditions.append('p."producto_precioUnitario" >= :min_price')
         params["min_price"] = float(filters.min_price)
 
     if filters.max_price is not None:
-        conditions.append("p.producto_precioUnitario <= :max_price")
+        conditions.append('p."producto_precioUnitario" <= :max_price')
         params["max_price"] = float(filters.max_price)
 
     where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
@@ -62,8 +62,8 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     order_map = {
         "name_asc":   "p.producto_nombre ASC",
         "name_desc":  "p.producto_nombre DESC",
-        "price_asc":  "p.producto_precioUnitario ASC",
-        "price_desc": "p.producto_precioUnitario DESC",
+        "price_asc":  'p."producto_precioUnitario" ASC',
+        "price_desc": 'p."producto_precioUnitario" DESC',
     }
 
     if filters.sort_by == "popularity":
@@ -90,7 +90,7 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
     # ================================================================
     main_sql = f"""
         SELECT p.producto_id, p.producto_nombre, p.producto_descripcion,
-               p.producto_precioUnitario, p.producto_categoria, p.producto_activo,
+               p."producto_precioUnitario", p.producto_categoria, p.producto_activo,
                p.image_url
         FROM productos p
         {where_clause}
