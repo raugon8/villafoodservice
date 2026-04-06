@@ -1,43 +1,47 @@
-# pubspec.yaml - Archivo de configuración del proyecto Flutter
-# Define el nombre, versión, dependencias y assets del proyecto
+# pubspec.yaml - archivo de configuracion del proyecto flutter
+# define el nombre, version, dependencias y assets del proyecto
 name: villafood_frontend
-description: "Aplicación móvil y web para gestión de servicios alimenticios del centro educativo"
-# Versión de la aplicación
+description: "aplicacion movil y web para gestion de servicios alimenticios del centro educativo"
+# version de la aplicacion
 version: 1.0.0+1
-# Configuración del entorno Flutter
+# configuracion del entorno flutter
 environment:
   sdk: '>=3.1.0 <4.0.0'
-# DEPENDENCIAS - Librerías que usa el proyecto
+# dependencias - librerias que usa el proyecto
 dependencies:
-  # Flutter SDK - Framework base de Flutter (obligatorio)
+  # flutter sdk - framework base de flutter (obligatorio)
   flutter:
     sdk: flutter
     
-  # --- DEPENDENCIAS DE IDIOMAS ---
+  # --- dependencias de idiomas ---
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
   # ------------------------------------------
 
-  # http - Librería para hacer peticiones HTTP al backend
+  # --- dependencias de graficas 
+  fl_chart: ^0.68.0
+  
+
+  # http - libreria para hacer peticiones http al backend
   http: ^1.1.0
   provider: ^6.1.5+1
-  # shared_preferences - Persiste preferencias del usuario entre sesiones
+  # shared_preferences - persiste preferencias del usuario entre sesiones
   shared_preferences: ^2.2.2
   # dependencias de la tarea 15 imagenes y supabase
   supabase_flutter: ^2.3.0
   image_picker: ^1.0.7
   cached_network_image: ^3.3.1
-# DEPENDENCIAS DE DESARROLLO - Solo para desarrollo, no van en la app final
+# dependencias de desarrollo - solo para desarrollo, no van en la app final
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-# Configuración de Flutter
+# configuracion de flutter
 flutter:
   uses-material-design: true
   
-  # --- ACTIVA LA GENERACIÓN AUTOMÁTICA DE TRADUCCIONES (TAREA 17) ---
+  # --- activa la generacion automatica de traducciones ---
   generate: true
   
   # assets:
