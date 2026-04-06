@@ -4,7 +4,7 @@ import bcrypt
 from backend.database_manager.database import get_db
 from backend.models.user_model import User
 from backend.models.role_model import RoleModel, UserRoleModel
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 # Agrupa los endpoints de autenticación. Se registra en main.py con include_router.
 router = APIRouter()
@@ -14,6 +14,18 @@ class UserCreate(BaseModel):
     nombre_usuario: str
     correo: str
     contraseña: str
+
+    @validator('contraseña')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('La contraseña debe tener al menos 8 caracteres')
+        if not any(char.isdigit() for char in v):
+            raise ValueError('La contraseña debe contener al menos un número')
+        if not any(char.isupper() for char in v):
+            raise ValueError('La contraseña debe contener al menos una letra mayúscula')
+        if not any(char.islower() for char in v):
+            raise ValueError('La contraseña debe contener al menos una letra minúscula')
+        return v
 
 
 # Schema para el login: solo necesita correo y contraseña.
