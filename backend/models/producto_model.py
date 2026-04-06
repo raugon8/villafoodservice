@@ -61,7 +61,3 @@ class ProductoIngrediente(Base):
 
     producto    = relationship("Producto", back_populates="productos_ingredientes")
     ingrediente = relationship("Ingrediente", back_populates="productos_vinculados")
-
-    __table_args__ = (
-        {'sqlite_autoincrement': True},
-    )
