@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../models/producto.dart';
 import '../../models/cart_manager.dart';
 
-// pantalla de detalles ampliados para el cliente
 class producto_detalle_screen extends StatelessWidget {
   final producto item;
 
@@ -11,13 +13,24 @@ class producto_detalle_screen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
-      appBar: AppBar(title: Text(item.producto_nombre)),
+      appBar: AppBar(
+        title: Text(item.producto_nombre),
+        actions: [
+          IconButton(
+            icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
+            onPressed: () => locale_prov.toggle_locale(),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // imagen destacada superior
             SizedBox(
               width: double.infinity,
               height: 250,
@@ -65,12 +78,11 @@ class producto_detalle_screen extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
 
-                  // seccion de alergenos requerida por la tarea
-                  const Text('Alérgenos declarados:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(loc.det_alergenos_tit, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   
                   if (item.alergenos.isEmpty)
-                    const Text('Sin alérgenos declarados', style: TextStyle(color: Colors.green, fontSize: 16))
+                    Text(loc.det_sin_alergenos, style: const TextStyle(color: Colors.green, fontSize: 16))
                   else
                     Wrap(
                       spacing: 8,
@@ -83,7 +95,6 @@ class producto_detalle_screen extends StatelessWidget {
                   
                   const SizedBox(height: 40),
                   
-                  // boton de añadir al carrito
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -94,12 +105,12 @@ class producto_detalle_screen extends StatelessWidget {
                       onPressed: item.disponible ? () {
                         cart_manager.add_item(item.producto_id, item.producto_nombre, item.producto_precio_unitario);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('${item.producto_nombre} añadido al carrito'), backgroundColor: Colors.green),
+                          SnackBar(content: Text('${item.producto_nombre} ${loc.catalogo_anadido}'), backgroundColor: Colors.green),
                         );
                         Navigator.pop(context);
                       } : null,
                       icon: const Icon(Icons.shopping_cart, color: Colors.white),
-                      label: Text(item.disponible ? 'Añadir al carrito' : 'Agotado', style: const TextStyle(color: Colors.white, fontSize: 18)),
+                      label: Text(item.disponible ? loc.det_add_carrito : loc.det_agotado, style: const TextStyle(color: Colors.white, fontSize: 18)),
                     ),
                   )
                 ],

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+// importamos diccionarios
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/order_staff_service.dart';
 import '../../models/order_staff_model.dart';
 import '../../providers/auth_provider.dart';
 
+/// pantalla que muestra los detalles de un pedido al personal
+/// permite cambiar el estado del pedido (ej. de pendiente a listo)
 class order_detail_screen extends StatefulWidget {
   final int order_id;
   final String service;
@@ -30,6 +35,7 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     _load_detail();
   }
 
+  /// solicita al backend los datos completos del pedido seleccionado
   Future<void> _load_detail() async {
     setState(() { loading = true; error = null; });
     try {
@@ -46,15 +52,20 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     }
   }
 
-  Future<void> _change_status(String new_status) async {
+  /// muestra un dialogo de confirmacion y actualiza el estado del pedido
+  ///
+  /// args:
+  ///   new_status (String): el nuevo estado que se le asignara al pedido
+  ///   loc (AppLocalizations): diccionario de traduccion activo
+  Future<void> _change_status(String new_status, AppLocalizations loc) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar cambio'),
-        content: Text('¿Cambiar estado a "$new_status"?'),
+        title: Text(loc.ord_det_confirm_title),
+        content: Text('${loc.ord_det_confirm_msg}"$new_status"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.ord_det_cancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(loc.ord_det_confirm)),
         ],
       ),
     );
@@ -71,36 +82,36 @@ class _order_detail_screen_state extends State<order_detail_screen> {
         current_role: auth.current_role ?? 'dependiente',
       );
       setState(() { order = updated; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Estado actualizado a "$new_status"'))
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${loc.ord_det_status_updated}"$new_status"')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${loc.ord_det_error}$e'), backgroundColor: Colors.red));
     }
   }
 
-  Widget _status_button() {
+  /// dibuja el boton de accion dependiendo del estado actual del pedido
+  ///
+  /// args:
+  ///   loc (AppLocalizations): diccionario de traduccion activo
+  Widget _status_button(AppLocalizations loc) {
     if (order == null) return const SizedBox();
     switch (order!.order_status) {
       case 'pendiente':
         return ElevatedButton.icon(
           icon: const Icon(Icons.play_arrow),
-          label: const Text('Iniciar preparación'),
+          label: Text(loc.ord_det_btn_start),
           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-          onPressed: () => _change_status('en_preparacion'),
+          onPressed: () => _change_status('en_preparacion', loc),
         );
       case 'en_preparacion':
         return ElevatedButton.icon(
           icon: const Icon(Icons.check),
-          label: const Text('Marcar como listo'),
+          label: Text(loc.ord_det_btn_ready),
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: () => _change_status('listo'),
+          onPressed: () => _change_status('listo', loc),
         );
       case 'listo':
-        return const Chip(
-          label: Text('Pedido completado', style: TextStyle(color: Colors.white)),
+        return Chip(
+          label: Text(loc.ord_det_btn_completed, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.green,
         );
       default:
@@ -110,14 +121,23 @@ class _order_detail_screen_state extends State<order_detail_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
-      appBar: AppBar(title: Text('pedido #${widget.order_id}')),
+      appBar: AppBar(
+        title: Text('${loc.ord_det_title}${widget.order_id}'),
+        actions: [
+          IconButton(icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)), onPressed: () => locale_prov.toggle_locale()),
+        ],
+      ),
       body: loading
         ? const Center(child: CircularProgressIndicator())
         : error != null
-          ? Center(child: Text('error: $error'))
+          ? Center(child: Text('${loc.ord_det_error}$error'))
           : order == null
-            ? const Center(child: Text('pedido no encontrado'))
+            ? Center(child: Text(loc.ord_det_not_found))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -132,21 +152,18 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Cliente: ${order!.user_name}',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                Text('${loc.ord_det_client}${order!.user_name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                 Chip(
-                                  label: Text(order!.order_status,
-                                    style: const TextStyle(color: Colors.white)),
+                                  label: Text(order!.order_status, style: const TextStyle(color: Colors.white)),
                                   backgroundColor: Color(order_staff_item.getStatusColor(order!.order_status)),
                                 )
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text('Pedido: ${order!.order_date_time.toString().substring(0, 16)}'),
+                            Text('${loc.ord_det_order}${order!.order_date_time.toString().substring(0, 16)}'),
                             if (order!.order_pickup_time != null)
-                              Text('Recogida: ${order!.order_pickup_time.toString().substring(0, 16)}'),
-                            Text('Total: €${order!.order_total.toStringAsFixed(2)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text('${loc.ord_det_pickup}${order!.order_pickup_time.toString().substring(0, 16)}'),
+                            Text('${loc.ord_det_total}${order!.order_total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -157,24 +174,23 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                         color: Colors.amber[50],
                         child: ListTile(
                           leading: const Icon(Icons.info_outline, color: Colors.orange),
-                          title: const Text('Notas del cliente'),
+                          title: Text(loc.ord_det_notes_title),
                           subtitle: Text(order!.order_notes),
                         ),
                       ),
                     ],
                     const SizedBox(height: 8),
-                    const Text('Productos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(loc.ord_det_products_title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     ...order!.details.map((d) => Card(
                       child: ListTile(
                         title: Text(d.product_name),
-                        subtitle: Text('cantidad: ${d.detail_quantity}'),
-                        trailing: Text('€${d.detail_subtotal.toStringAsFixed(2)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${loc.ord_det_qty}${d.detail_quantity}'),
+                        trailing: Text('€${d.detail_subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     )),
                     const SizedBox(height: 16),
-                    Center(child: _status_button()),
+                    Center(child: _status_button(loc)),
                   ],
                 ),
               ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../models/producto.dart';
 import '../../models/alergeno_model.dart';
 import '../../providers/auth_provider.dart';
@@ -8,6 +10,8 @@ import '../../services/producto_service.dart';
 import '../../services/api_service.dart';
 import '../../services/image_upload_service.dart';
 
+/// pantalla de formulario para crear o editar un producto
+/// incluye seleccion de categoria, imagen y alergenos
 class producto_form_screen extends StatefulWidget {
   final producto? producto_editar;
   const producto_form_screen({super.key, this.producto_editar});
@@ -24,7 +28,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
   String _categoria_sel = 'Cafetería';
   bool _is_loading = false;
   
-  // variables nuevas para imagenes y alergenos
   String? _image_url;
   List<alergeno> _todos_alergenos = [];
   List<int> _alergenos_seleccionados = [];
@@ -51,7 +54,7 @@ class _producto_form_screen_state extends State<producto_form_screen> {
     }
   }
 
-  // simulamos la carga de alergenos del backend
+  /// carga la lista de alergenos disponibles desde el backend simulado
   Future<void> _cargar_alergenos() async {
     final lista = await _api.get_alergenos_mock();
     setState(() {
@@ -59,7 +62,7 @@ class _producto_form_screen_state extends State<producto_form_screen> {
     });
   }
 
-  // lanza el selector de imagenes simulado
+  /// lanza el selector de imagenes y actualiza la url local
   Future<void> _subir_imagen() async {
     setState(() => _is_loading = true);
     final url = await _upload_service.upload_image();
@@ -77,7 +80,11 @@ class _producto_form_screen_state extends State<producto_form_screen> {
     super.dispose();
   }
 
-  Future<void> _guardar() async {
+  /// empaqueta los datos del formulario y los envia al backend para crear o actualizar
+  ///
+  /// args:
+  ///   loc (AppLocalizations): diccionario de traduccion activo
+  Future<void> _guardar(AppLocalizations loc) async {
     if (!_form_key.currentState!.validate()) return;
     setState(() => _is_loading = true);
 
@@ -110,16 +117,12 @@ class _producto_form_screen_state extends State<producto_form_screen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_es_edicion ? 'Producto actualizado' : 'Producto creado')),
+          SnackBar(content: Text(_es_edicion ? loc.prod_form_msg_updated : loc.prod_form_msg_created)),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('error: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _is_loading = false);
     }
@@ -127,15 +130,23 @@ class _producto_form_screen_state extends State<producto_form_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
-      appBar: AppBar(title: Text(_es_edicion ? 'Editar Producto' : 'Nuevo Producto')),
+      appBar: AppBar(
+        title: Text(_es_edicion ? loc.prod_form_edit : loc.prod_form_new),
+        actions: [
+          IconButton(icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)), onPressed: () => locale_prov.toggle_locale()),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _form_key,
           child: ListView(
             children: [
-              // seccion de imagen
               Center(
                 child: Column(
                   children: [
@@ -149,18 +160,14 @@ class _producto_form_screen_state extends State<producto_form_screen> {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: _image_url != null
-                        ? CachedNetworkImage(
-                            imageUrl: _image_url!,
-                            fit: BoxFit.cover,
-                            placeholder: (c, u) => const Center(child: CircularProgressIndicator()),
-                          )
+                        ? CachedNetworkImage(imageUrl: _image_url!, fit: BoxFit.cover, placeholder: (c, u) => const Center(child: CircularProgressIndicator()))
                         : const Icon(Icons.image, size: 50, color: Colors.grey),
                     ),
                     const SizedBox(height: 8),
                     TextButton.icon(
                       onPressed: _is_loading ? null : _subir_imagen,
                       icon: const Icon(Icons.upload),
-                      label: const Text('Cambiar imagen'),
+                      label: Text(loc.prod_form_change_img),
                     ),
                   ],
                 ),
@@ -169,38 +176,37 @@ class _producto_form_screen_state extends State<producto_form_screen> {
               
               TextFormField(
                 controller: _nombre_ctrl,
-                decoration: const InputDecoration(labelText: 'Nombre del producto', border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa un nombre' : null,
+                decoration: InputDecoration(labelText: loc.prod_form_name, border: const OutlineInputBorder()),
+                validator: (v) => (v == null || v.trim().isEmpty) ? loc.prod_form_name_err : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _precio_ctrl,
-                decoration: const InputDecoration(labelText: 'Precio unitario', border: OutlineInputBorder(), prefixText: '€ '),
+                decoration: InputDecoration(labelText: loc.prod_form_price, border: const OutlineInputBorder(), prefixText: '€ '),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Ingresa un precio';
+                  if (v == null || v.trim().isEmpty) return loc.prod_form_price_err;
                   final precio = double.tryParse(v.trim());
-                  if (precio == null || precio <= 0) return 'Precio inválido';
+                  if (precio == null || precio <= 0) return loc.prod_form_price_inv;
                   return null;
                 },
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _categoria_sel,
-                decoration: const InputDecoration(labelText: 'Categoría', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: loc.prod_form_cat, border: const OutlineInputBorder()),
                 items: _categorias.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
                 onChanged: (val) => setState(() => _categoria_sel = val!),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descripcion_ctrl,
-                decoration: const InputDecoration(labelText: 'Descripción (opcional)', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: loc.prod_form_desc, border: const OutlineInputBorder()),
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
               
-              // seccion de alergenos
-              const Text('Alérgenos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(loc.prod_form_allergens, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               if (_todos_alergenos.isEmpty) const CircularProgressIndicator()
               else Wrap(
@@ -227,10 +233,10 @@ class _producto_form_screen_state extends State<producto_form_screen> {
               SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _is_loading ? null : _guardar,
+                  onPressed: _is_loading ? null : () => _guardar(loc),
                   child: _is_loading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(_es_edicion ? 'Actualizar' : 'Crear Producto'),
+                      : Text(_es_edicion ? loc.prod_form_update : loc.prod_form_create),
                 ),
               ),
             ],

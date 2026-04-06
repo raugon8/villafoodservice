@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../providers/locale_provider.dart';
 import '../../services/ingrediente_service.dart';
 import '../../models/ingrediente.dart';
 import '../../providers/auth_provider.dart';
@@ -29,6 +31,7 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
   @override
   void initState() {
     super.initState();
+    // rellena los datos si estamos editando
     if (_es_edicion) {
       final ing = widget.ingrediente_editar!;
       nombre_controller.text = ing.ingrediente_nombre;
@@ -48,9 +51,9 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
     super.dispose();
   }
 
-  void guardar() async {
+  // procesa el formulario hacia el backend
+  void guardar(AppLocalizations loc) async {
     if (!form_key.currentState!.validate()) return;
-
     setState(() => _is_loading = true);
 
     final auth = Provider.of<auth_provider>(context, listen: false);
@@ -64,32 +67,16 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
 
     try {
       if (_es_edicion) {
-        await service_instancia.update_ingrediente(
-          widget.ingrediente_editar!.ingrediente_id,
-          datos,
-          user_id: auth.user_id ?? 1,
-          current_role: auth.current_role ?? 'admin',
-        );
+        await service_instancia.update_ingrediente(widget.ingrediente_editar!.ingrediente_id, datos, user_id: auth.user_id ?? 1, current_role: auth.current_role ?? 'admin');
       } else {
-        await service_instancia.create_ingrediente(
-          datos,
-          user_id: auth.user_id ?? 1,
-          current_role: auth.current_role ?? 'admin',
-        );
+        await service_instancia.create_ingrediente(datos, user_id: auth.user_id ?? 1, current_role: auth.current_role ?? 'admin');
       }
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_es_edicion ? 'Ingrediente actualizado' : 'Ingrediente creado')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_es_edicion ? loc.ing_form_updated : loc.ing_form_created)));
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('error: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _is_loading = false);
     }
@@ -97,9 +84,17 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_es_edicion ? 'Editar ingrediente' : 'Nuevo ingrediente'),
+        title: Text(_es_edicion ? loc.ing_form_edit : loc.ing_form_new),
+        actions: [
+          // bandera de idiomas obligatoria segun requisitos
+          IconButton(icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)), onPressed: () => locale_prov.toggle_locale()),
+        ],
       ),
       body: Form(
         key: form_key,
@@ -108,47 +103,43 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
           children: [
             TextFormField(
               controller: nombre_controller,
-              decoration: const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder()),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa un nombre' : null,
+              decoration: InputDecoration(labelText: loc.ing_form_name, border: const OutlineInputBorder()),
+              validator: (v) => (v == null || v.trim().isEmpty) ? loc.ing_form_name_err : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: stock_actual_controller,
-              decoration: const InputDecoration(labelText: 'Stock actual', border: OutlineInputBorder()),
+              decoration: InputDecoration(labelText: loc.ing_form_stock, border: const OutlineInputBorder()),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) => double.tryParse(v ?? '') == null ? 'Valor inválido' : null,
+              validator: (v) => double.tryParse(v ?? '') == null ? loc.ing_form_invalid : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: stock_minimo_controller,
-              decoration: const InputDecoration(labelText: 'Stock mínimo', border: OutlineInputBorder()),
+              decoration: InputDecoration(labelText: loc.ing_form_min_stock, border: const OutlineInputBorder()),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) => double.tryParse(v ?? '') == null ? 'Valor inválido' : null,
+              validator: (v) => double.tryParse(v ?? '') == null ? loc.ing_form_invalid : null,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: unidad_seleccionada,
-              decoration: const InputDecoration(labelText: 'Unidad de medida', border: OutlineInputBorder()),
-              items: ['kg', 'g', 'L', 'ml', 'unidades']
-                  .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                  .toList(),
+              decoration: InputDecoration(labelText: loc.ing_form_unit, border: const OutlineInputBorder()),
+              items: ['kg', 'g', 'L', 'ml', 'unidades'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
               onChanged: (v) => setState(() => unidad_seleccionada = v!),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: precio_controller,
-              decoration: const InputDecoration(labelText: 'Precio unitario', border: OutlineInputBorder(), prefixText: '€ '),
+              decoration: InputDecoration(labelText: loc.ing_form_price, border: const OutlineInputBorder(), prefixText: '€ '),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) => double.tryParse(v ?? '') == null ? 'Valor inválido' : null,
+              validator: (v) => double.tryParse(v ?? '') == null ? loc.ing_form_invalid : null,
             ),
             const SizedBox(height: 30),
             SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: _is_loading ? null : guardar,
-                child: _is_loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(_es_edicion ? 'Actualizar' : 'Guardar'),
+                onPressed: _is_loading ? null : () => guardar(loc),
+                child: _is_loading ? const CircularProgressIndicator(color: Colors.white) : Text(_es_edicion ? loc.ing_form_update : loc.cat_save),
               ),
             ),
           ],

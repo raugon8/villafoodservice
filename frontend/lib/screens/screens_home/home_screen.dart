@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/text_scale_toggle.dart';
 import '../../screens/screens_auth/role_selector_screen.dart';
@@ -14,24 +16,25 @@ import '../../screens/admin/dashboard_screen.dart';
 import '../../screens/admin/category_management_screen.dart';
 import '../../screens/admin/user_management_screen.dart';
 
-// pantalla principal que filtra opciones segun el rol del usuario
 class home_screen extends StatelessWidget {
   const home_screen({super.key});
 
-  // formatea el nombre del rol para mostrarlo en la interfaz
-  String _rol_display(String? rol) {
+  String _rol_display(String? rol, AppLocalizations loc) {
     switch (rol) {
-      case 'admin':       return 'Administrador';
-      case 'cliente':     return 'Cliente';
-      case 'dependiente': return 'Dependiente';
-      case 'almacen':     return 'Almacén';
-      default:            return 'Sin rol';
+      case 'admin':       return loc.home_rol_admin;
+      case 'cliente':     return loc.home_rol_cliente;
+      case 'dependiente': return loc.home_rol_dependiente;
+      case 'almacen':     return loc.home_rol_almacen;
+      default:            return loc.home_rol_sin_rol;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<auth_provider>(context);
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
     final String? rol = auth.current_role;
 
     return Scaffold(
@@ -41,35 +44,35 @@ class home_screen extends StatelessWidget {
           children: [
             const Text('villafood', style: TextStyle(fontSize: 16)),
             Text(
-              'sesion como: ${_rol_display(rol)}',
+              '${loc.home_sesion_como}${_rol_display(rol, loc)}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
         actions: [
-          // toggle para accesibilidad de tamaño de texto
+          // Bandera de idiomas
+          IconButton(
+            icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
+            onPressed: () => locale_prov.toggle_locale(),
+          ),
           const text_scale_toggle(),
           
           if (auth.available_roles.length > 1)
             IconButton(
               icon: const Icon(Icons.swap_horiz),
-              tooltip: 'cambiar rol',
+              tooltip: loc.home_cambiar_rol,
               onPressed: () => Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (c) => const role_selector_screen())
+                context, MaterialPageRoute(builder: (c) => const role_selector_screen())
               ),
             ),
           
-          // boton de cierre de sesion con navegacion directa
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'cerrar sesion',
+            tooltip: loc.home_cerrar_sesion,
             onPressed: () {
               auth.logout();
               Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (c) => const login_screen()),
-                (route) => false,
+                context, MaterialPageRoute(builder: (c) => const login_screen()), (route) => false,
               );
             },
           ),
@@ -79,31 +82,27 @@ class home_screen extends StatelessWidget {
         crossAxisCount: 2,
         padding: const EdgeInsets.all(20),
         children: [
-          // bloques condicionales segun permisos del usuario
           if (rol == 'admin') ...[
-            _crear_boton(context, Icons.analytics, 'dashboard', 'ver estadisticas generales', const dashboard_screen()),
-            _crear_boton(context, Icons.people, 'usuarios', 'gestionar cuentas de usuario', const user_management_screen()),
-            _crear_boton(context, Icons.category, 'categorias', 'gestionar categorias de productos', const category_management_screen()),
+            _crear_boton(context, Icons.analytics, loc.home_btn_dashboard, loc.home_desc_dashboard, const dashboard_screen()),
+            _crear_boton(context, Icons.people, loc.home_btn_usuarios, loc.home_desc_usuarios, const user_management_screen()),
+            _crear_boton(context, Icons.category, loc.home_btn_categorias, loc.home_desc_categorias, const category_management_screen()),
           ],
-          
           if (rol == 'admin' || rol == 'almacen')
-            _crear_boton(context, Icons.kitchen, 'ingredientes', 'gestionar existencias de ingredientes', const ingredientes_list_screen()),
-          
+            _crear_boton(context, Icons.kitchen, loc.home_btn_ingredientes, loc.home_desc_ingredientes, const ingredientes_list_screen()),
           if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
-            _crear_boton(context, Icons.restaurant_menu, 'productos', 'gestionar catalogo de productos', const productos_list_screen()),
+            _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
           
-          _crear_boton(context, Icons.search, 'catalogo', 'buscar y filtrar productos', const catalog_screen()),
-          _crear_boton(context, Icons.shopping_cart, 'carrito', 'ver productos seleccionados para comprar', const cart_screen()),
-          _crear_boton(context, Icons.history, 'mis pedidos', 'ver historial de compras realizadas', const orders_screen()),
+          _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
+          _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
+          _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const orders_screen()),
           
           if (rol == 'admin' || rol == 'dependiente')
-            _crear_boton(context, Icons.assignment, 'gestion staff', 'panel de preparacion de pedidos', const order_list_screen()),
+            _crear_boton(context, Icons.assignment, loc.home_btn_staff, loc.home_desc_staff, const order_list_screen()),
         ],
       ),
     );
   }
 
-  // construye botones con soporte para lectores de pantalla
   Widget _crear_boton(BuildContext context, IconData icono, String texto, String label_accesibilidad, Widget pantalla) {
     return Semantics(
       label: label_accesibilidad,

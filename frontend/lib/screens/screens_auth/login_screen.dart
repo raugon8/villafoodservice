@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart'; 
+import '../../providers/locale_provider.dart';
 import '../../../services/api_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../screens_home/home_screen.dart';
@@ -23,7 +25,8 @@ class _login_screen_state extends State<login_screen> {
   void ejecutar_login() async {
     if (email_controller.text.isEmpty || pass_controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('error: rellena todo'))
+        // usamos el texto traducido para el error
+        SnackBar(content: Text(AppLocalizations.of(context)!.error_campos))
       );
       return;
     }
@@ -60,11 +63,34 @@ class _login_screen_state extends State<login_screen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Obtenemos las traducciones de esta pantalla
+    final localizations = AppLocalizations.of(context)!;
+    // 2. Obtenemos el proveedor de idiomas para el botón de la bandera
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('villafood'),
+        title: Text(localizations.login_titulo), // titulo traducido
         centerTitle: true,
-        actions: const [text_scale_toggle()],
+        actions: [
+          // --- BOTÓN DE IDIOMA (TAREA 17) ---
+          Semantics(
+            label: is_spanish ? 'Cambiar idioma a inglés' : 'Change language to Spanish',
+            button: true,
+            child: IconButton(
+              icon: Text(
+                is_spanish ? '🇪🇸' : '🇬🇧', 
+                style: const TextStyle(fontSize: 24),
+              ),
+              onPressed: () {
+                locale_prov.toggle_locale();
+              },
+            ),
+          ),
+          // ----------------------------------
+          const text_scale_toggle()
+        ],
       ),
       // centra el contenido y permite scroll para el teclado
       body: Center(
@@ -86,10 +112,10 @@ class _login_screen_state extends State<login_screen> {
                     label: 'campo de correo electronico',
                     child: TextField(
                       controller: email_controller,
-                      decoration: const InputDecoration(
-                        labelText: 'email',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: localizations.login_email, // label traducido
+                        prefixIcon: const Icon(Icons.email),
+                        border: const OutlineInputBorder(),
                       )
                     ),
                   ),
@@ -99,10 +125,10 @@ class _login_screen_state extends State<login_screen> {
                     label: 'campo de contraseña',
                     child: TextField(
                       controller: pass_controller,
-                      decoration: const InputDecoration(
-                        labelText: 'contraseña',
-                        prefixIcon: Icon(Icons.lock),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: localizations.login_password, // label traducido
+                        prefixIcon: const Icon(Icons.lock),
+                        border: const OutlineInputBorder(),
                       ),
                       obscureText: true
                     ),
@@ -124,7 +150,7 @@ class _login_screen_state extends State<login_screen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             onPressed: ejecutar_login,
-                            child: const Text('entrar', style: TextStyle(fontSize: 16))
+                            child: Text(localizations.login_boton, style: const TextStyle(fontSize: 16)) // botón traducido
                           ),
                         ),
                       ),
@@ -134,7 +160,7 @@ class _login_screen_state extends State<login_screen> {
                     onPressed: () => Navigator.push(
                       context, MaterialPageRoute(builder: (c) => const register_screen())
                     ),
-                    child: const Text('¿no tienes cuenta? registrate', style: TextStyle(color: Colors.grey)),
+                    child: Text(localizations.login_registro, style: const TextStyle(color: Colors.grey, fontSize: 13)), // texto registro traducido
                   ),
                 ],
               ),

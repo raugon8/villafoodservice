@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/role_model.dart';
 import '../../providers/auth_provider.dart';
-
 
 class user_management_screen extends StatefulWidget {
   const user_management_screen({super.key});
@@ -40,7 +41,7 @@ class _user_management_screen_state extends State<user_management_screen> {
     }
   }
 
-  void _abrir_formulario({user_with_roles? usuario}) {
+  void _abrir_formulario(AppLocalizations loc, {user_with_roles? usuario}) {
     final name_ctrl     = TextEditingController(text: usuario?.user_name ?? '');
     final email_ctrl    = TextEditingController(text: usuario?.user_email ?? '');
     final pass_ctrl     = TextEditingController();
@@ -51,30 +52,30 @@ class _user_management_screen_state extends State<user_management_screen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set_state) => AlertDialog(
-          title: Text(usuario == null ? 'Crear usuario' : 'Editar usuario'),
+          title: Text(usuario == null ? loc.user_mgr_create_title : loc.user_mgr_edit_title),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: name_ctrl,
-                  decoration: const InputDecoration(labelText: 'Nombre completo')
+                  decoration: InputDecoration(labelText: loc.user_mgr_name)
                 ),
                 TextField(
                   controller: email_ctrl,
-                  decoration: const InputDecoration(labelText: 'Email')
+                  decoration: InputDecoration(labelText: loc.user_mgr_email)
                 ),
                 TextField(
                   controller: pass_ctrl,
                   decoration: InputDecoration(
-                    labelText: usuario == null ? 'Contraseña' : 'Nueva contraseña (opcional)'
+                    labelText: usuario == null ? loc.user_mgr_pass : loc.user_mgr_new_pass
                   ),
                   obscureText: true,
                 ),
                 const SizedBox(height: 12),
-                const Align(
+                Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Roles:', style: TextStyle(fontWeight: FontWeight.bold))
+                  child: Text(loc.user_mgr_roles, style: const TextStyle(fontWeight: FontWeight.bold))
                 ),
                 ...roles_disponibles.map((rol) => CheckboxListTile(
                   title: Text(rol),
@@ -93,29 +94,28 @@ class _user_management_screen_state extends State<user_management_screen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')
+              child: Text(loc.user_mgr_cancel)
             ),
             ElevatedButton(
               onPressed: () async {
                 if (name_ctrl.text.isEmpty || email_ctrl.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Nombre y email son obligatorios'))
+                    SnackBar(content: Text(loc.user_mgr_err_name_email))
                   );
                   return;
                 }
                 if (roles_seleccionados.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Selecciona al menos un rol'))
+                    SnackBar(content: Text(loc.user_mgr_err_roles))
                   );
                   return;
                 }
                 try {
                   final auth = Provider.of<auth_provider>(context, listen: false);
                   if (usuario == null) {
-                    // Crear usuario nuevo
                     if (pass_ctrl.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('La contraseña es obligatoria'))
+                        SnackBar(content: Text(loc.user_mgr_err_pass))
                       );
                       return;
                     }
@@ -128,10 +128,9 @@ class _user_management_screen_state extends State<user_management_screen> {
                       roles:        roles_seleccionados,
                     );
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Usuario creado correctamente'), backgroundColor: Colors.green)
+                      SnackBar(content: Text(loc.user_mgr_msg_created), backgroundColor: Colors.green)
                     );
                   }  else {
-                    // Actualizar usuario completo 
                     await service_instancia.update_user(
                       usuario_id:   usuario.user_id,
                       user_id:      auth.user_id ?? 1,
@@ -142,7 +141,7 @@ class _user_management_screen_state extends State<user_management_screen> {
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Usuario actualizado correctamente'), backgroundColor: Colors.green)
+                        SnackBar(content: Text(loc.user_mgr_msg_updated), backgroundColor: Colors.green)
                       );
                     }
                   }
@@ -154,7 +153,7 @@ class _user_management_screen_state extends State<user_management_screen> {
                   );
                 }
               },
-              child: Text(usuario == null ? 'Crear' : 'Guardar'),
+              child: Text(usuario == null ? loc.user_mgr_create_btn : loc.user_mgr_save_btn),
             ),
           ],
         ),
@@ -164,10 +163,22 @@ class _user_management_screen_state extends State<user_management_screen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final locale_prov = Provider.of<locale_provider>(context);
+    final is_spanish = locale_prov.locale.languageCode == 'es';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('gestión de usuarios')),
+      appBar: AppBar(
+        title: Text(loc.user_mgr_title),
+        actions: [
+          IconButton(
+            icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
+            onPressed: () => locale_prov.toggle_locale(),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _abrir_formulario(),
+        onPressed: () => _abrir_formulario(loc),
         child: const Icon(Icons.add),
       ),
       body: _loading
@@ -194,7 +205,7 @@ class _user_management_screen_state extends State<user_management_screen> {
                         padding: EdgeInsets.zero,
                       )).toList(),
                     ),
-                    onTap: () => _abrir_formulario(usuario: user),
+                    onTap: () => _abrir_formulario(loc, usuario: user),
                   ),
                 );
               },
