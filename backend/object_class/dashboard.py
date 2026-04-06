@@ -49,6 +49,18 @@ class VentasStats(BaseModel):
     ticket_promedio: Decimal
 
 
+class SeriePedidosData(BaseModel):
+    """Punto de datos para la gráfica temporal de pedidos."""
+    fecha: str
+    total: int
+
+
+class SerieIngresosData(BaseModel):
+    """Punto de datos para la gráfica temporal de ingresos."""
+    fecha: str
+    total: Decimal
+
+
 class DashboardResponse(BaseModel):
     """Respuesta global del dashboard. Agrupa todas las secciones en un solo objeto.
     periodo_inicio y periodo_fin reflejan el filtro aplicado, tiene None por valor si no se filtra por fecha."""
@@ -59,3 +71,6 @@ class DashboardResponse(BaseModel):
     ventas: VentasStats
     periodo_inicio: Optional[datetime]
     periodo_fin: Optional[datetime]
+    # Series temporales de los últimos 7 días para las gráficas del dashboard.
+    series_pedidos: list[SeriePedidosData] = []
+    series_ingresos: list[SerieIngresosData] = []

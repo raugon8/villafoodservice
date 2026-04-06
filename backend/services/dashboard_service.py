@@ -6,7 +6,8 @@ from decimal import Decimal
 
 from backend.object_class.dashboard import (
     DashboardResponse, PedidosStats, ProductosStats,
-    IngredientesStats, UsuariosStats, VentasStats
+    IngredientesStats, UsuariosStats, VentasStats,
+    SeriePedidosData, SerieIngresosData
 )
 
 
@@ -163,6 +164,27 @@ def obtener_estadisticas_dashboard(
         ticket_promedio=ticket,
     )
 
+    # ================================================================
+    # 6. SERIES TEMPORALES — últimos 7 días para las gráficas
+    # ================================================================
+    series_pedidos_result = db.execute(text("""
+        SELECT DATE(order_date_time) as fecha, COUNT(*) as total
+        FROM orders
+        WHERE order_date_time >= CURRENT_DATE - INTERVAL '6 days'
+        GROUP BY DATE(order_date_time)
+        ORDER BY fecha ASC
+    """)).fetchall()
+
+    series_ingresos_result = db.execute(text("""
+        SELECT DATE(order_date_time) as fecha, COALESCE(SUM(order_total), 0) as total
+        FROM orders
+        WHERE order_status IN ('listo', 'entregado')
+        AND order_date_time >= CURRENT_DATE - INTERVAL '6 days'
+        GROUP BY DATE(order_date_time)
+        ORDER BY fecha ASC
+    """)).fetchall()
+    
+
     return DashboardResponse(
         pedidos=pedidos_stats,
         productos=productos_stats,
@@ -171,4 +193,8 @@ def obtener_estadisticas_dashboard(
         ventas=ventas_stats,
         periodo_inicio=fecha_inicio,
         periodo_fin=fecha_fin,
+        series_pedidos=[SeriePedidosData(fecha=str(r[0]), total=r[1]) for r in series_pedidos_result],
+        series_ingresos=[SerieIngresosData(fecha=str(r[0]), total=Decimal(str(r[1]))) for r in series_ingresos_result],
     )
+
+    
