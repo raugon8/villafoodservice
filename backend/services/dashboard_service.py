@@ -53,8 +53,8 @@ def obtener_estadisticas_dashboard(
     # ================================================================
     productos_result = db.execute(text("""
         SELECT
-            SUM(CASE WHEN producto_activo = 1 THEN 1 ELSE 0 END),
-            SUM(CASE WHEN producto_activo = 0 THEN 1 ELSE 0 END)
+            SUM(CASE WHEN producto_activo = TRUE THEN 1 ELSE 0 END),
+            SUM(CASE WHEN producto_activo = FALSE THEN 1 ELSE 0 END)
         FROM productos
     """)).fetchone()
 
@@ -62,12 +62,12 @@ def obtener_estadisticas_dashboard(
     sin_stock_result = db.execute(text("""
         SELECT COUNT(DISTINCT p.producto_id)
         FROM productos p
-        WHERE p.producto_activo = 1
+        WHERE p.producto_activo = TRUE
         AND p.producto_id IN (
-            SELECT pi.productoIngrediente_productoId
+            SELECT pi."productoIngrediente_productoId"
             FROM productos_ingredientes pi
-            JOIN ingredientes i ON pi.productoIngrediente_ingredienteId = i.ingrediente_id
-            WHERE (i.ingrediente_stockActual / pi.productoIngrediente_cantidad) < 1
+            JOIN ingredientes i ON pi."productoIngrediente_ingredienteId" = i.ingrediente_id
+            WHERE (i."ingrediente_stockActual" / pi."productoIngrediente_cantidad") < 1
         )
     """)).fetchone()
 
@@ -97,13 +97,13 @@ def obtener_estadisticas_dashboard(
     # ================================================================
     ing_result = db.execute(text("""
         SELECT
-            SUM(CASE WHEN ingrediente_activo = 1 THEN 1 ELSE 0 END),
-            SUM(CASE WHEN ingrediente_activo = 1
-                AND ingrediente_stockActual <= ingrediente_stockMinimo THEN 1 ELSE 0 END),
-            SUM(CASE WHEN ingrediente_activo = 1
-                AND ingrediente_stockActual > ingrediente_stockMinimo
-                AND ingrediente_stockActual <= ingrediente_stockMinimo * 1.5 THEN 1 ELSE 0 END),
-            SUM(CASE WHEN ingrediente_activo = 0 THEN 1 ELSE 0 END)
+            SUM(CASE WHEN ingrediente_activo = TRUE THEN 1 ELSE 0 END),
+            SUM(CASE WHEN ingrediente_activo = TRUE
+                AND "ingrediente_stockActual" <= "ingrediente_stockMinimo" THEN 1 ELSE 0 END),
+            SUM(CASE WHEN ingrediente_activo = TRUE
+                AND "ingrediente_stockActual" > "ingrediente_stockMinimo"
+                AND "ingrediente_stockActual" <= "ingrediente_stockMinimo" * 1.5 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN ingrediente_activo = FALSE THEN 1 ELSE 0 END)
         FROM ingredientes
     """)).fetchone()
 
@@ -125,7 +125,7 @@ def obtener_estadisticas_dashboard(
         SELECT r.role_name, COUNT(DISTINCT ur.user_id) as total
         FROM user_roles ur
         JOIN roles r ON ur.role_id = r.role_id
-        WHERE ur.role_active = 1
+        WHERE ur.role_active = TRUE
         GROUP BY r.role_name
     """)).fetchall()
 
