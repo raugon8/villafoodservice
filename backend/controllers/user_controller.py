@@ -1,97 +1,178 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from backend.object_class.users import UserWithRoles, UserCreateAdmin, UserUpdate
-from backend.middleware.auth_middleware import RequireRole
-from backend.services import user_service
+from backend.object_class.orders import (
+    CartCreate,
+    OrderCreate,
+    OrderResponse,
+    OrderListResponse,
+    OrderStatusUpdate,
+    OrderStaffResponse,
+    ValidatedCartItemResponse,
+    HistorialPedido,
+    RepetirPedidoResponse
+)
+from backend.services import order_service, order_staff_service
 from backend.database_manager.database import get_db
+from backend.middleware.auth_middleware import RequireRole
 
-router = APIRouter(prefix="/usuarios", tags=["usuarios"])
-
-
-# Endpoint sin restricción de rol, cualquier usuario ve sus roles.
-# El frontend lo usa tras el login para saber a qué pantallas tiene acceso.
-@router.get("/me/roles")
-def get_user_roles(user_id: int, db: Session = Depends(get_db)):
-    """Devuelve los roles activos del usuario indicado."""
-    return {"roles": user_service.obtener_roles_usuario(db, user_id)}
+router = APIRouter(prefix="/pedidos", tags=["pedidos"])
 
 
-# El resto de endpoints son exclusivos del admin.
-@router.get("/", response_model=List[UserWithRoles])
-def list_users(
+# ============================================================================
+# ENDPOINTS DE CLIENTE (sin order_id en la ruta)
+# ============================================================================
+
+@router.post("/validar-carrito", response_model=List[ValidatedCartItemResponse])
+def validate_cart(
+    cart: CartCreate,
     user_id: int = Query(...),
     current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Comprueba la disponibilidad de los productos del carrito antes de confirmar el pedido."""
+    RequireRole(["cliente", "admin"])
+    return order_service.validate_cart(db, cart.items)
+
+
+@router.post("/crear", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+def create_order(
+    order_data: OrderCreate,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Crea un pedido y descuenta el stock de ingredientes."""
+    RequireRole(["cliente", "admin"])
+    return order_service.create_order(db, user_id, order_data)
+
+
+@router.get("/historial", response_model=List[HistorialPedido])
+def get_historial_pedidos(
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """[TAREA 19] Devuelve los pedidos del usuario ordenados del más reciente al más antiguo."""
+    # Exclusivo para que el cliente vea su historial con detalle de productos
+    RequireRole(["cliente"])
+    return order_service.obtener_historial(db, user_id)
+
+
+@router.get("/", response_model=List[OrderListResponse])
+def list_orders(
+    # user_id es opcional: el cliente manda su ID y ve sus pedidos, el admin no lo manda y los ve todos.
+    user_id: Optional[int] = Query(None),
+    current_role: str = Query(...),
+    status: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Lista pedidos con filtros opcionales de usuario y estado."""
+    RequireRole(["cliente", "admin"])
+    return order_service.list_orders(db, user_id, status, skip, limit)
+
+
+# ============================================================================
+# ENDPOINTS DE STAFF — deben definirse antes que /{order_id}.
+# Si estuvieran después, FastAPI interpretaría "staff" como un order_id entero y fallaría.
+# ============================================================================
+
+@router.get("/staff", response_model=List[OrderStaffResponse])
+def list_staff_orders(
+    service: str = Query(..., description="Servicio: cafeteria, restaurante, reposteria"),
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    """Lista todos los usuarios del sistema."""
-    RequireRole(["admin"])
-    return user_service.listar_usuarios(db, skip, limit, search)
+    """Lista los pedidos del servicio asignado al dependiente."""
+    RequireRole(["dependiente", "admin"])
+    return order_staff_service.listar_pedidos_staff(db, service, status, search, skip, limit)
 
 
-@router.get("/{usuario_id}", response_model=UserWithRoles)
-def get_user_by_id(
-    usuario_id: int,
+@router.get("/staff/{order_id}", response_model=OrderStaffResponse)
+def get_staff_order_detail(
+    order_id: int,
+    service: str = Query(..., description="Servicio del dependiente"),
     user_id: int = Query(...),
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Obtiene un usuario por su ID."""
-    RequireRole(["admin"])
-    return user_service.obtener_usuario_por_id(db, usuario_id)
+    """Obtiene el detalle completo de un pedido para el dependiente."""
+    RequireRole(["dependiente", "admin"])
+    return order_staff_service.obtener_pedido_staff_detalle(db, order_id, service)
 
 
-@router.post("/", response_model=UserWithRoles, status_code=201)
-def create_user_by_admin(
-    user_data: UserCreateAdmin,
+@router.patch("/staff/{order_id}/estado", response_model=OrderStaffResponse)
+def update_staff_order_status(
+    order_id: int,
+    status_data: OrderStatusUpdate,
+    service: str = Query(..., description="Servicio del dependiente"),
     user_id: int = Query(...),
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Crea un nuevo usuario con sus roles asignados."""
-    RequireRole(["admin"])
-    return user_service.crear_usuario_admin(db, user_data)
+    """Actualiza el estado de un pedido con las transiciones permitidas para el dependiente."""
+    RequireRole(["dependiente", "admin"])
+    return order_staff_service.actualizar_estado_pedido_staff(
+        db, order_id, status_data.order_status, service
+    )
 
 
-# Actualiza datos personales (nombre, correo, contraseña).
-@router.patch("/{usuario_id}", response_model=UserWithRoles)
-def update_user(
-    usuario_id: int,
-    user_data: UserUpdate,
+# ============================================================================
+# ENDPOINTS DE CLIENTE con {order_id} — Al final para evitar conflictos de ruta de endpoint.
+# ============================================================================
+
+@router.post("/repetir/{order_id}", response_model=RepetirPedidoResponse)
+def repeat_order(
+    order_id: int,
     user_id: int = Query(...),
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Actualiza los datos personales de un usuario."""
-    RequireRole(["admin"])
-    return user_service.actualizar_usuario(db, usuario_id, user_data)
+    """[TAREA 19] Verifica la disponibilidad y stock para repetir un pedido."""
+    RequireRole(["cliente"])
+    return order_service.repetir_pedido(db, order_id, user_id)
 
 
-@router.delete("/{usuario_id}")
-def deactivate_user(
-    usuario_id: int,
+@router.get("/{order_id}", response_model=OrderResponse)
+def get_order_by_id(
+    order_id: int,
     user_id: int = Query(...),
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Desactiva un usuario (desactiva sus roles, no borra el registro)."""
-    RequireRole(["admin"])
-    return user_service.desactivar_usuario(db, usuario_id)
+    """Obtiene el detalle completo de un pedido específico."""
+    RequireRole(["cliente", "admin"])
+    return order_service.get_order_by_id(db, order_id)
 
 
-# Este endpoint actualiza exclusivamente los roles del usuario.
-@router.patch("/{usuario_id}/roles", response_model=UserWithRoles)
-def update_user_roles(
-    usuario_id: int,
-    roles_data: dict,
+@router.patch("/{order_id}/estado", response_model=OrderResponse)
+def update_order_status(
+    order_id: int,
+    status_data: OrderStatusUpdate,
     user_id: int = Query(...),
     current_role: str = Query(...),
     db: Session = Depends(get_db)
 ):
-    """Reemplaza los roles activos del usuario por los nuevos indicados."""
-    RequireRole(["admin"])
-    return user_service.actualizar_roles_usuario(db, usuario_id, roles_data.get("roles", []))
+    """Cambia el estado de un pedido respetando las transiciones válidas."""
+    RequireRole(["cliente", "admin"])
+    return order_service.update_order_status(db, order_id, status_data.order_status)
+
+
+@router.delete("/{order_id}/cancelar", response_model=OrderResponse)
+def cancel_order(
+    order_id: int,
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Cancela un pedido y restaura el stock de ingredientes."""
+    RequireRole(["cliente", "admin"])
+    return order_service.cancel_order(db, order_id, user_id)

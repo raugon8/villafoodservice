@@ -50,13 +50,13 @@ def validate_cart(db: Session, items: list) -> List[dict]:
         subtotal = price * item.quantity
 
         result.append({
-            "product_id":        product.producto_id,
-            "product_name":      product.producto_nombre,
-            "product_price":     price,
-            "quantity":          item.quantity,
-            "subtotal":          subtotal,
-            "available":         available,
-            "stock_available":   stock_available,
+            "product_id": product.producto_id,
+            "product_name": product.producto_nombre,
+            "product_price": price,
+            "quantity": item.quantity,
+            "subtotal": subtotal,
+            "available": available,
+            "stock_available": stock_available,
             "product_categoria": product.producto_categoria
         })
 
@@ -129,11 +129,11 @@ def get_order_by_id(db: Session, order_id: int) -> dict:
 
 
 def list_orders(
-    db: Session,
-    user_id: Optional[int] = None,
-    status: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 20
+        db: Session,
+        user_id: Optional[int] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20
 ) -> List[dict]:
     """Lista pedidos con filtros opcionales.
     Si user_id es None devuelve todos los pedidos (uso del admin)."""
@@ -160,13 +160,13 @@ def list_orders(
         ).count()
 
         result.append({
-            "order_id":        order.order_id,
-            "user_id":         order.user_id,
-            "user_name":       user.nombre_usuario if user else "Desconocido",
+            "order_id": order.order_id,
+            "user_id": order.user_id,
+            "user_name": user.nombre_usuario if user else "Desconocido",
             "order_date_time": order.order_date_time,
-            "order_status":    order.order_status,
-            "order_total":     order.order_total,
-            "items_count":     items_count
+            "order_status": order.order_status,
+            "order_total": order.order_total,
+            "items_count": items_count
         })
 
     return result
@@ -239,6 +239,98 @@ def cancel_order(db: Session, order_id: int, user_id: int) -> dict:
         raise HTTPException(status_code=500, detail=f"Error al cancelar el pedido: {str(e)}")
 
 
+# ============================================================================
+# TAREA 19: HISTORIAL Y REPETIR PEDIDO
+# ============================================================================
+
+def obtener_historial(db: Session, user_id: int) -> List[dict]:
+    """Obtiene el historial de todos los pedidos de un usuario, ordenados del más reciente al más antiguo,
+    incluyendo el detalle de productos."""
+    pedidos = db.query(OrderModel).filter(OrderModel.user_id == user_id) \
+        .order_by(OrderModel.order_date_time.desc()).all()
+
+    resultado = []
+    for pedido in pedidos:
+        productos_detalle = []
+        for detalle in pedido.details:
+            producto = db.query(Producto).filter(Producto.producto_id == detalle.product_id).first()
+            nombre_prod = producto.producto_nombre if producto else "Producto desconocido"
+
+            productos_detalle.append({
+                "producto_id": detalle.product_id,
+                "nombre": nombre_prod,
+                "cantidad": detalle.detail_quantity,
+                "precio_unitario": detalle.detail_unit_price
+            })
+
+        resultado.append({
+            "pedido_id": pedido.order_id,
+            "fecha": pedido.order_date_time,
+            "estado": pedido.order_status,
+            "total": pedido.order_total,
+            "productos": productos_detalle
+        })
+
+    return resultado
+
+
+def repetir_pedido(db: Session, order_id: int, user_id: int) -> dict:
+    """Verifica si los productos de un pedido anterior están disponibles para volver a añadirlos al carrito.
+    Reutiliza la función calcular_unidades_disponibles para chequear el inventario real."""
+    pedido = db.query(OrderModel).filter(
+        OrderModel.order_id == order_id,
+        OrderModel.user_id == user_id
+    ).first()
+
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado o no pertenece a este usuario")
+
+    disponibles = []
+    no_disponibles = []
+
+    for detalle in pedido.details:
+        producto = db.query(Producto).filter(Producto.producto_id == detalle.product_id).first()
+
+        # 1. Comprobar si el producto existe y sigue activo en el catálogo
+        if not producto or not producto.producto_activo:
+            nombre = producto.producto_nombre if producto else "Producto no disponible"
+            no_disponibles.append({
+                "producto_id": detalle.product_id,
+                "nombre": nombre,
+                "motivo": "Producto eliminado"
+            })
+            continue
+
+        # 2. Comprobar stock (requerimiento: suficiente para al menos 1 unidad)
+        stock_disponible = calcular_unidades_disponibles(db, producto.producto_id)
+
+        if stock_disponible < 1:
+            no_disponibles.append({
+                "producto_id": producto.producto_id,
+                "nombre": producto.producto_nombre,
+                "motivo": "Sin stock"
+            })
+        else:
+            # Si hay stock, devolvemos el producto con la cantidad que pidió originalmente.
+            # NOTA: Usamos el precio ACTUAL del catálogo (producto.producto_precioUnitario),
+            # no el precio viejo al que lo compró en el pasado.
+            disponibles.append({
+                "producto_id": producto.producto_id,
+                "nombre": producto.producto_nombre,
+                "cantidad": detalle.detail_quantity,
+                "precio_unitario": producto.producto_precioUnitario
+            })
+
+    return {
+        "productos_disponibles": disponibles,
+        "productos_no_disponibles": no_disponibles
+    }
+
+
+# ============================================================================
+# FUNCIONES AUXILIARES INTERNAS
+# ============================================================================
+
 def _deduct_ingredient_stock(db: Session, product_id: int, quantity_ordered: int) -> None:
     """Descuenta el stock de ingredientes al confirmar un pedido."""
     relations = db.query(ProductoIngrediente).filter(
@@ -287,20 +379,20 @@ def _build_order_response(db: Session, order: OrderModel) -> dict:
     for d in details:
         product = db.query(Producto).filter(Producto.producto_id == d.product_id).first()
         details_list.append({
-            "detail_id":         d.detail_id,
-            "product_id":        d.product_id,
-            "product_name":      product.producto_nombre if product else None,
-            "detail_quantity":   d.detail_quantity,
+            "detail_id": d.detail_id,
+            "product_id": d.product_id,
+            "product_name": product.producto_nombre if product else None,
+            "detail_quantity": d.detail_quantity,
             "detail_unit_price": d.detail_unit_price,
-            "detail_subtotal":   d.detail_subtotal
+            "detail_subtotal": d.detail_subtotal
         })
 
     return {
-        "order_id":        order.order_id,
-        "user_id":         order.user_id,
+        "order_id": order.order_id,
+        "user_id": order.user_id,
         "order_date_time": order.order_date_time,
-        "order_status":    order.order_status,
-        "order_total":     order.order_total,
-        "order_notes":     order.order_notes,
-        "details":         details_list
+        "order_status": order.order_status,
+        "order_total": order.order_total,
+        "order_notes": order.order_notes,
+        "details": details_list
     }

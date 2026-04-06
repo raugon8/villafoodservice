@@ -136,8 +136,7 @@ class OrderListResponse(BaseModel):
 
 class OrderStaffResponse(BaseModel):
     """Respuesta de pedido para el dependiente.
-    Incluye is_new (si el dependiente aún no lo ha visto) y user_name obligatorio
-    para que el dependiente sepa a quién entregar el pedido."""
+    Incluye is_new (si el dependiente aún no ha visto) y user_name obligatorio."""
     order_id: int
     user_id: int
     user_name: str
@@ -147,10 +146,40 @@ class OrderStaffResponse(BaseModel):
     order_notes: Optional[str] = None
     order_service: Optional[str] = None
     order_pickup_time: Optional[datetime] = None
-    # True si el dependiente aún no ha visto este pedido en la lista o en el detalle.
     is_new: bool
     items_count: int
     details: List[OrderDetailResponse] = []
 
     class Config:
         from_attributes = True
+
+
+# --- NUEVOS SCHEMAS PARA TAREA 19 (Historial y Repetir Pedido) ---
+
+class HistorialProducto(BaseModel):
+    producto_id: int
+    nombre: str
+    cantidad: int
+    precio_unitario: Decimal
+
+class HistorialPedido(BaseModel):
+    pedido_id: int
+    fecha: datetime
+    estado: str
+    total: Decimal
+    productos: List[HistorialProducto]
+
+class ProductoDisponible(BaseModel):
+    producto_id: int
+    nombre: str
+    cantidad: int
+    precio_unitario: Decimal
+
+class ProductoNoDisponible(BaseModel):
+    producto_id: int
+    nombre: str
+    motivo: str
+
+class RepetirPedidoResponse(BaseModel):
+    productos_disponibles: List[ProductoDisponible]
+    productos_no_disponibles: List[ProductoNoDisponible]
