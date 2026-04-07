@@ -3,6 +3,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/order_staff_model.dart';
 
+// construye los headers con el token JWT si esta disponible
+Map<String, String> _build_headers({String? token, bool json = false}) {
+  final headers = <String, String>{};
+  if (json) headers['content-type'] = 'application/json';
+  if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+  return headers;
+}
+
 // gestiona los pedidos desde la perspectiva de cocina o mostrador
 class order_staff_service {
   static const String base_url = AppConstants.apiUrl;
@@ -16,11 +24,12 @@ class order_staff_service {
     String? search,
     int skip = 0,
     int limit = 20,
+    String? token,
   }) async {
     String url = '$base_url/pedidos/staff?service=$service&user_id=$user_id&current_role=$current_role&skip=$skip&limit=$limit';
     if (status != null && status.isNotEmpty) url += '&status=$status';
     if (search != null && search.isNotEmpty) url += '&search=$search';
-    final response = await http.get(Uri.parse(url));
+    final response = await http.get(Uri.parse(url), headers: _build_headers(token: token));
     if (response.statusCode == 200) {
       List data = jsonDecode(response.body);
       return data.map((o) => order_staff_item.from_json(o)).toList();
@@ -34,9 +43,11 @@ class order_staff_service {
     String service, {
     required int user_id,
     required String current_role,
+    String? token,
   }) async {
     final response = await http.get(
       Uri.parse('$base_url/pedidos/staff/$order_id?service=$service&user_id=$user_id&current_role=$current_role'),
+      headers: _build_headers(token: token),
     );
     if (response.statusCode == 200) {
       return order_staff_item.from_json(jsonDecode(response.body));
@@ -51,10 +62,11 @@ class order_staff_service {
     String service, {
     required int user_id,
     required String current_role,
+    String? token,
   }) async {
     final response = await http.patch(
       Uri.parse('$base_url/pedidos/staff/$order_id/estado?service=$service&user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode({'order_status': new_status}),
     );
     if (response.statusCode == 200) {
@@ -63,4 +75,3 @@ class order_staff_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error actualizando estado');
   }
 }
-

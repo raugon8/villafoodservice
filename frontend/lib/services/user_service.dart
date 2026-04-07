@@ -3,14 +3,23 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/role_model.dart';
 
+// construye los headers con el token JWT si esta disponible
+Map<String, String> _build_headers({String? token, bool json = false}) {
+  final headers = <String, String>{};
+  if (json) headers['content-type'] = 'application/json';
+  if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+  return headers;
+}
+
 // conexion con el backend para la gestion de usuarios
 class user_service {
   static const String base_url = AppConstants.apiUrl;
 
   // lista usuarios requiriendo permisos de admin
-  Future<List<user_with_roles>> list_users({int user_id = 1, String current_role = 'admin'}) async {
+  Future<List<user_with_roles>> list_users({int user_id = 1, String current_role = 'admin', String? token}) async {
     final response = await http.get(
       Uri.parse('$base_url/usuarios/?user_id=$user_id&current_role=$current_role&limit=100'),
+      headers: _build_headers(token: token),
     );
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -33,19 +42,20 @@ class user_service {
     required String email,
     required String password,
     required List<String> roles,
+    String? token,
   }) async {
     final response = await http.post(
       Uri.parse('$base_url/usuarios/?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode({
         'usuario_name':     name,
-        'usuario_surname':  '', 
+        'usuario_surname':  '',
         'usuario_email':    email,
         'usuario_password': password,
         'roles':            roles,
       }),
     );
-    
+
     if (response.statusCode == 201) {
       final u = jsonDecode(response.body);
       return user_with_roles(
@@ -60,7 +70,7 @@ class user_service {
     throw Exception(error['detail'] ?? 'error al crear usuario');
   }
 
-  // actualiza roles y datos basicos (bug resuelto)
+  // actualiza roles y datos basicos
   Future<user_with_roles> update_user({
     required int usuario_id,
     required int user_id,
@@ -68,17 +78,18 @@ class user_service {
     required String name,
     required String email,
     required List<String> roles,
+    String? token,
   }) async {
     final response = await http.patch(
       Uri.parse('$base_url/usuarios/$usuario_id?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode({
         'usuario_name': name,
         'usuario_email': email,
         'roles': roles
       }),
     );
-    
+
     if (response.statusCode == 200) {
       final u = jsonDecode(response.body);
       return user_with_roles(
@@ -93,4 +104,3 @@ class user_service {
     throw Exception(error['detail'] ?? 'error al actualizar usuario');
   }
 }
-

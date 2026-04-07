@@ -12,20 +12,27 @@ List<order> _parse_orders_list(String response_body) {
 }
 // --------------------------------------------------------------------------
 
+// construye los headers con el token JWT si esta disponible, manteniendo compatibilidad con query params
+Map<String, String> _build_headers({String? token, bool json = false}) {
+  final headers = <String, String>{};
+  if (json) headers['content-type'] = 'application/json';
+  if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+  return headers;
+}
+
 // maneja el proceso de compra desde la perspectiva del cliente
 class order_service {
   static const String base_url = AppConstants.apiUrl;
   static const Duration timeout_duration = Duration(seconds: 10); // limite de 10 segundos
 
   // comprueba stock y precios antes de confirmar el pago
-  Future<bool> validate_cart(List<cart_item> items, {required int user_id, required String current_role}) async {
+  Future<bool> validate_cart(List<cart_item> items, {required int user_id, required String current_role, String? token}) async {
     try {
       final response = await http.post(
         Uri.parse('$base_url/pedidos/validar-carrito?user_id=$user_id&current_role=$current_role'),
-        headers: {'content-type': 'application/json'},
+        headers: _build_headers(token: token, json: true),
         body: jsonEncode({'items': items.map((i) => i.to_json()).toList()}),
       ).timeout(timeout_duration);
-      
       if (response.statusCode == 200) return true;
       throw Exception(jsonDecode(response.body)['detail'] ?? 'error validando carrito');
     } on TimeoutException {
@@ -34,17 +41,16 @@ class order_service {
   }
 
   // transforma el carrito en un pedido formal en el sistema
-  Future<order> create_order(List<cart_item> items, String notas, int user_id, {required String current_role}) async {
+  Future<order> create_order(List<cart_item> items, String notas, int user_id, {required String current_role, String? token}) async {
     try {
       final response = await http.post(
         Uri.parse('$base_url/pedidos/crear?user_id=$user_id&current_role=$current_role'),
-        headers: {'content-type': 'application/json'},
+        headers: _build_headers(token: token, json: true),
         body: jsonEncode({
           'items': items.map((i) => i.to_json()).toList(),
           'order_notes': notas
         }),
       ).timeout(timeout_duration);
-      
       if (response.statusCode == 201) return order.from_json(jsonDecode(response.body));
       throw Exception(jsonDecode(response.body)['detail'] ?? 'error creando pedido');
     } on TimeoutException {
@@ -53,12 +59,12 @@ class order_service {
   }
 
   // historial de pedidos del usuario logueado
-  Future<List<order>> list_orders(int user_id, {required String current_role}) async {
+  Future<List<order>> list_orders(int user_id, {required String current_role, String? token}) async {
     try {
       final response = await http.get(
         Uri.parse('$base_url/pedidos/?user_id=$user_id&current_role=$current_role'),
+        headers: _build_headers(token: token),
       ).timeout(timeout_duration);
-      
       if (response.statusCode == 200) {
         // usamos compute para que la UI no se congele al procesar el historial
         return await compute(_parse_orders_list, response.body);

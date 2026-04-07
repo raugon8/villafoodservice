@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../l10n/app_localizations.dart'; 
+import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../../services/api_service.dart';
 import '../../../providers/auth_provider.dart';
@@ -21,7 +21,7 @@ class _login_screen_state extends State<login_screen> {
   final service_instancia = api_service();
   bool loading = false;
 
-  // gestiona la autenticacion y guarda los datos en el provider
+  // gestiona la autenticacion y guarda los datos en el provider incluyendo el token JWT
   void ejecutar_login() async {
     if (email_controller.text.isEmpty || pass_controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -34,16 +34,23 @@ class _login_screen_state extends State<login_screen> {
     setState(() { loading = true; });
 
     try {
-      final u = await service_instancia.login(
+      // login devuelve el usuario, los roles y el token JWT en un solo mapa
+      final resultado = await service_instancia.login(
         email_controller.text, pass_controller.text
       );
 
-      final roles_response = await service_instancia.get_user_roles(u.usuario_id);
-      final List<String> roles = List<String>.from(roles_response);
+      final u       = resultado['usuario'];
+      final roles   = resultado['roles'] as List<String>;
+      final token   = resultado['access_token'] as String;
 
       if (!mounted) return;
 
-      Provider.of<auth_provider>(context, listen: false).set_user(u.usuario_id, roles);
+      // guardamos el token en el provider para que todos los services lo usen en sus headers
+      Provider.of<auth_provider>(context, listen: false).set_user(
+        u.usuario_id,
+        roles,
+        token: token,
+      );
 
       Navigator.pushReplacement(
         context,

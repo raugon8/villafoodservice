@@ -26,8 +26,8 @@ class api_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error en el registro');
   }
 
-  // valida credenciales y devuelve el usuario
-  Future<user> login(String email, String password) async {
+  // valida credenciales, devuelve el usuario y el token JWT
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/login'),
       headers: {'content-type': 'application/json'},
@@ -35,11 +35,16 @@ class api_service {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return user(
-        usuario_id:     data['usuario_id'],
-        nombre_usuario: data['nombre_usuario'],
-        correo:         data['correo']
-      );
+      return {
+        'usuario': user(
+          usuario_id:     data['usuario_id'],
+          nombre_usuario: data['nombre_usuario'],
+          correo:         data['correo'],
+        ),
+        'roles':        List<String>.from(data['roles'] ?? []),
+        // el token JWT se guarda en el provider para enviarlo en cada peticion
+        'access_token': data['access_token'] ?? '',
+      };
     }
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error al iniciar sesion');
   }
@@ -87,4 +92,3 @@ class api_service {
     ];
   }
 }
-

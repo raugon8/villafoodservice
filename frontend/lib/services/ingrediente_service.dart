@@ -3,14 +3,23 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/ingrediente.dart';
 
+// construye los headers con el token JWT si esta disponible
+Map<String, String> _build_headers({String? token, bool json = false}) {
+  final headers = <String, String>{};
+  if (json) headers['content-type'] = 'application/json';
+  if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+  return headers;
+}
+
 // logica de red para el crud del inventario
 class ingrediente_service {
   static const String base_url = AppConstants.apiUrl;
 
   // obtiene todo el stock actual
-  Future<List<ingrediente>> get_ingredientes({required int user_id, required String current_role}) async {
+  Future<List<ingrediente>> get_ingredientes({required int user_id, required String current_role, String? token}) async {
     final response = await http.get(
       Uri.parse('$base_url/ingredientes/?user_id=$user_id&current_role=$current_role'),
+      headers: _build_headers(token: token),
     );
     if (response.statusCode == 200) {
       List<dynamic> data = jsonDecode(response.body);
@@ -20,10 +29,10 @@ class ingrediente_service {
   }
 
   // registra un ingrediente nuevo en la base de datos
-  Future<ingrediente> create_ingrediente(Map<String, dynamic> data, {required int user_id, required String current_role}) async {
+  Future<ingrediente> create_ingrediente(Map<String, dynamic> data, {required int user_id, required String current_role, String? token}) async {
     final response = await http.post(
       Uri.parse('$base_url/ingredientes/?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode(data),
     );
     if (response.statusCode == 201) {
@@ -34,10 +43,10 @@ class ingrediente_service {
   }
 
   // sobrescribe los datos de un ingrediente existente
-  Future<ingrediente> update_ingrediente(int id, Map<String, dynamic> data, {required int user_id, required String current_role}) async {
+  Future<ingrediente> update_ingrediente(int id, Map<String, dynamic> data, {required int user_id, required String current_role, String? token}) async {
     final response = await http.put(
       Uri.parse('$base_url/ingredientes/$id?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode(data),
     );
     if (response.statusCode == 200) {
@@ -48,13 +57,13 @@ class ingrediente_service {
   }
 
   // borra el ingrediente permanentemente
-  Future<void> delete_ingrediente(int id, {required int user_id, required String current_role}) async {
+  Future<void> delete_ingrediente(int id, {required int user_id, required String current_role, String? token}) async {
     final response = await http.delete(
       Uri.parse('$base_url/ingredientes/$id?user_id=$user_id&current_role=$current_role'),
+      headers: _build_headers(token: token),
     );
     if (response.statusCode != 204 && response.statusCode != 200) {
       throw Exception('error al eliminar');
     }
   }
 }
-

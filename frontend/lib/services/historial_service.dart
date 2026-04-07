@@ -9,15 +9,21 @@ class historial_service {
   // usamos la base url de tu api service existente
   final String base_url = api_service.base_url;
 
+  // construye los headers con el token JWT si esta disponible
+  Map<String, String> _build_headers({String? token}) {
+    final headers = <String, String>{};
+    if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+    return headers;
+  }
+
   /// solicita al backend la lista completa de pedidos anteriores de un cliente especifico
   ///
   /// args:
   ///   user_id (int): el identificador unico del cliente
   ///   current_role (String): el rol con el que actua (debe ser cliente)
-  Future<List<historial_pedido>> get_historial(int user_id, String current_role) async {
+  Future<List<historial_pedido>> get_historial(int user_id, String current_role, {String? token}) async {
     final url = Uri.parse('$base_url/pedidos/historial?user_id=$user_id&current_role=$current_role');
-    final response = await http.get(url);
-
+    final response = await http.get(url, headers: _build_headers(token: token));
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((json) => historial_pedido.from_json(json)).toList();
@@ -32,10 +38,9 @@ class historial_service {
   ///   pedido_id (int): el numero de pedido que el cliente quiere volver a comprar
   ///   user_id (int): el identificador unico del cliente
   ///   current_role (String): el rol con el que actua (debe ser cliente)
-  Future<Map<String, dynamic>> repetir_pedido(int pedido_id, int user_id, String current_role) async {
+  Future<Map<String, dynamic>> repetir_pedido(int pedido_id, int user_id, String current_role, {String? token}) async {
     final url = Uri.parse('$base_url/pedidos/repetir/$pedido_id?user_id=$user_id&current_role=$current_role');
-    final response = await http.post(url);
-
+    final response = await http.post(url, headers: _build_headers(token: token));
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {

@@ -3,6 +3,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/category_model.dart';
 
+// construye los headers con el token JWT si esta disponible
+Map<String, String> _build_headers({String? token, bool json = false}) {
+  final headers = <String, String>{};
+  if (json) headers['content-type'] = 'application/json';
+  if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+  return headers;
+}
+
 // crud para las categorias del menu
 class category_service {
   static const String base_url = AppConstants.apiUrl;
@@ -25,10 +33,11 @@ class category_service {
     String? description, {
     required int user_id,
     required String current_role,
+    String? token,
   }) async {
     final response = await http.post(
       Uri.parse('$base_url/categories/?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode({'category_name': name, 'category_description': description}),
     );
     if (response.statusCode == 201) {
@@ -45,6 +54,7 @@ class category_service {
     bool? active,
     required int user_id,
     required String current_role,
+    String? token,
   }) async {
     final body = <String, dynamic>{};
     if (name != null) body['category_name'] = name;
@@ -53,7 +63,7 @@ class category_service {
 
     final response = await http.patch(
       Uri.parse('$base_url/categories/$id?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: _build_headers(token: token, json: true),
       body: jsonEncode(body),
     );
     if (response.statusCode == 200) {
@@ -67,13 +77,14 @@ class category_service {
     int id, {
     required int user_id,
     required String current_role,
+    String? token,
   }) async {
     final response = await http.delete(
       Uri.parse('$base_url/categories/$id?user_id=$user_id&current_role=$current_role'),
+      headers: _build_headers(token: token),
     );
     if (response.statusCode != 204 && response.statusCode != 200) {
       throw Exception('error al desactivar categoria');
     }
   }
 }
-

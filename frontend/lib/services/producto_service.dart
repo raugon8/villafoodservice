@@ -19,6 +19,13 @@ List<producto> _parse_search_results(String response_body) {
   return products.map((p) => producto.from_json(p)).toList();
 }
 
+// construye los headers con el token JWT si esta disponible
+Map<String, String> _build_headers({String? token, bool json = false}) {
+  final headers = <String, String>{};
+  if (json) headers['content-type'] = 'application/json';
+  if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+  return headers;
+}
 
 // conexion principal para el crud de productos y sus recetas
 class producto_service {
@@ -30,7 +37,7 @@ class producto_service {
     try {
       final response = await http.get(Uri.parse('$base_url/productos/'))
           .timeout(timeout_duration);
-          
+
       if (response.statusCode == 200) {
         // movemos el parseo del json a un hilo secundario para no congelar la UI
         return await compute(_parse_productos_list, response.body);
@@ -53,12 +60,12 @@ class producto_service {
   }
 
   // inyecta parametros de seguridad en la url para crear el producto
-  Future<producto> create_producto(Map<String, dynamic> data, {required int user_id, required String current_role}) async {
+  Future<producto> create_producto(Map<String, dynamic> data, {required int user_id, required String current_role, String? token}) async {
     final uri = Uri.parse('$base_url/productos/').replace(queryParameters: {
       'user_id': user_id.toString(), 'current_role': current_role,
     });
     try {
-      final response = await http.post(uri, headers: {'content-type': 'application/json'}, body: jsonEncode(data))
+      final response = await http.post(uri, headers: _build_headers(token: token, json: true), body: jsonEncode(data))
           .timeout(timeout_duration);
       if (response.statusCode == 201 || response.statusCode == 200) return producto.from_json(jsonDecode(response.body));
       throw Exception(jsonDecode(response.body)['detail'] ?? 'error al crear producto');
@@ -68,12 +75,12 @@ class producto_service {
   }
 
   // inyecta parametros de seguridad en la url para actualizar el producto
-  Future<producto> update_producto(int id, Map<String, dynamic> data, {required int user_id, required String current_role}) async {
+  Future<producto> update_producto(int id, Map<String, dynamic> data, {required int user_id, required String current_role, String? token}) async {
     final uri = Uri.parse('$base_url/productos/$id').replace(queryParameters: {
       'user_id': user_id.toString(), 'current_role': current_role,
     });
     try {
-      final response = await http.put(uri, headers: {'content-type': 'application/json'}, body: jsonEncode(data))
+      final response = await http.put(uri, headers: _build_headers(token: token, json: true), body: jsonEncode(data))
           .timeout(timeout_duration);
       if (response.statusCode == 200) return producto.from_json(jsonDecode(response.body));
       throw Exception(jsonDecode(response.body)['detail'] ?? 'error al actualizar producto');
@@ -82,12 +89,12 @@ class producto_service {
     }
   }
 
-  Future<void> delete_producto(int id, {required int user_id, required String current_role}) async {
+  Future<void> delete_producto(int id, {required int user_id, required String current_role, String? token}) async {
     final uri = Uri.parse('$base_url/productos/$id').replace(queryParameters: {
       'user_id': user_id.toString(), 'current_role': current_role,
     });
     try {
-      final response = await http.delete(uri).timeout(timeout_duration);
+      final response = await http.delete(uri, headers: _build_headers(token: token)).timeout(timeout_duration);
       if (response.statusCode != 204 && response.statusCode != 200) throw Exception('error al eliminar producto');
     } on TimeoutException {
       throw Exception('el servidor ha tardado demasiado.');
@@ -109,6 +116,7 @@ class producto_service {
     String sort_by = 'name_asc',
     int skip = 0,
     int limit = 20,
+    String? token,
   }) async {
     String url = '$base_url/productos/search?current_role=$current_role&sort_by=$sort_by&skip=$skip&limit=$limit&active_only=$active_only&available_only=$available_only';
     if (query != null && query.isNotEmpty) url += '&search_query=$query';
@@ -123,7 +131,7 @@ class producto_service {
     if (max_price != null) url += '&max_price=$max_price';
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(timeout_duration);
+      final response = await http.get(Uri.parse(url), headers: _build_headers(token: token)).timeout(timeout_duration);
       if (response.statusCode == 200) {
         // usamos compute para que la busqueda no trabe la interfaz si hay muchos resultados
         return await compute(_parse_search_results, response.body);
@@ -153,10 +161,10 @@ class producto_service {
   }
 
   // asocia un ingrediente al producto definiendo su cantidad necesaria
-  Future<void> agregar_ingrediente(int producto_id, int ingrediente_id, double cantidad, {required int user_id, required String current_role}) async {
+  Future<void> agregar_ingrediente(int producto_id, int ingrediente_id, double cantidad, {required int user_id, required String current_role, String? token}) async {
     final uri = Uri.parse('$base_url/productos/$producto_id/ingredientes').replace(queryParameters: {'user_id': user_id.toString(), 'current_role': current_role});
     try {
-      final response = await http.post(uri, headers: {'content-type': 'application/json'}, body: jsonEncode({'ingrediente_id': ingrediente_id, 'cantidad_necesaria': cantidad}))
+      final response = await http.post(uri, headers: _build_headers(token: token, json: true), body: jsonEncode({'ingrediente_id': ingrediente_id, 'cantidad_necesaria': cantidad}))
           .timeout(timeout_duration);
       if (response.statusCode != 200 && response.statusCode != 201) throw Exception(jsonDecode(response.body)['detail'] ?? 'error al agregar ingrediente');
     } on TimeoutException {
@@ -165,10 +173,10 @@ class producto_service {
   }
 
   // desvincula un ingrediente de la receta del producto
-  Future<void> quitar_ingrediente(int producto_id, int ingrediente_id, {required int user_id, required String current_role}) async {
+  Future<void> quitar_ingrediente(int producto_id, int ingrediente_id, {required int user_id, required String current_role, String? token}) async {
     final uri = Uri.parse('$base_url/productos/$producto_id/ingredientes/$ingrediente_id').replace(queryParameters: {'user_id': user_id.toString(), 'current_role': current_role});
     try {
-      final response = await http.delete(uri).timeout(timeout_duration);
+      final response = await http.delete(uri, headers: _build_headers(token: token)).timeout(timeout_duration);
       if (response.statusCode != 200 && response.statusCode != 204) throw Exception(jsonDecode(response.body)['detail'] ?? 'error al quitar ingrediente');
     } on TimeoutException {
       throw Exception('el servidor ha tardado demasiado.');
