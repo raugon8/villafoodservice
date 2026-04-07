@@ -42,11 +42,11 @@ class _login_screen_state extends State<login_screen> {
       final List<String> roles = List<String>.from(roles_response);
 
       if (!mounted) return;
-      
+
       Provider.of<auth_provider>(context, listen: false).set_user(u.usuario_id, roles);
 
       Navigator.pushReplacement(
-        context, 
+        context,
         MaterialPageRoute(builder: (context) => const home_screen())
       );
 
@@ -80,7 +80,7 @@ class _login_screen_state extends State<login_screen> {
             button: true,
             child: IconButton(
               icon: Text(
-                is_spanish ? '🇪🇸' : '🇬🇧', 
+                is_spanish ? '🇪🇸' : '🇬🇧',
                 style: const TextStyle(fontSize: 24),
               ),
               onPressed: () {
@@ -104,10 +104,15 @@ class _login_screen_state extends State<login_screen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // icono decorativo de la app
-                  Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
+                  // logo de la aplicacion
+                  Image.asset(
+                    'assets/logo.png',
+                    width: 100,
+                    height: 100,
+                    errorBuilder: (c, e, s) => Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
+                  ),
                   const SizedBox(height: 24),
-                  
+
                   Semantics(
                     label: 'campo de correo electronico',
                     child: TextField(
@@ -120,7 +125,7 @@ class _login_screen_state extends State<login_screen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   Semantics(
                     label: 'campo de contraseña',
                     child: TextField(
@@ -134,7 +139,7 @@ class _login_screen_state extends State<login_screen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   loading
                     ? const CircularProgressIndicator()
                     : Semantics(
@@ -155,7 +160,7 @@ class _login_screen_state extends State<login_screen> {
                         ),
                       ),
                   const SizedBox(height: 12),
-                  
+
                   TextButton(
                     onPressed: () => Navigator.push(
                       context, MaterialPageRoute(builder: (c) => const register_screen())

@@ -44,5 +44,5 @@ flutter:
   # --- activa la generacion automatica de traducciones ---
   generate: true
   
-  # assets:
-  #   - assets/images/
+  assets:
+    - assets/logo.png
