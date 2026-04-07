@@ -28,11 +28,20 @@ class api_service {
 
   // valida credenciales y devuelve el usuario
   Future<user> login(String email, String password) async {
+    final url = Uri.parse('$base_url/auth/login'); // Sin barra al final, como en la web
+    
     final response = await http.post(
-      Uri.parse('$base_url/auth/login'),
-      headers: {'content-type': 'application/json'},
-      body: jsonEncode({'correo': email, 'contraseña': password}),
+      url, 
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Accept': 'application/json', 
+      },
+      body: jsonEncode({
+        'correo': email.trim(),
+        'contraseña': password,
+      }),
     );
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return user(
@@ -40,8 +49,9 @@ class api_service {
         nombre_usuario: data['nombre_usuario'],
         correo:         data['correo']
       );
+    } else {
+      throw Exception('Error: ${response.statusCode}');
     }
-    throw Exception(jsonDecode(response.body)['detail'] ?? 'error al iniciar sesion');
   }
 
   // pide al backend los roles asignados al usuario autenticado

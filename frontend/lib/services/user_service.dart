@@ -36,7 +36,7 @@ class user_service {
   }) async {
     final response = await http.post(
       Uri.parse('$base_url/usuarios/?user_id=$user_id&current_role=$current_role'),
-      headers: {'content-type': 'application/json'},
+      headers: {'content-type': 'application/json','Accept': 'application/json'},
       body: jsonEncode({
         'usuario_name':     name,
         'usuario_surname':  '', 
