@@ -138,6 +138,15 @@ class _productos_list_screen_state extends State<productos_list_screen> {
                               }
                             : null,
                       ),
+                      // boton explicito para editar ingredientes del producto
+                      IconButton(
+                        icon: const Icon(Icons.kitchen, color: Colors.orange),
+                        tooltip: 'Ver ingredientes',
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (c) => producto_ingredientes_screen(producto_id: item.producto_id, nombre_producto: item.producto_nombre)))
+                            .then((_) => _cargar_productos());
+                        },
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () async {
