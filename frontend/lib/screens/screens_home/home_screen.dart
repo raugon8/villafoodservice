@@ -94,12 +94,15 @@ class home_screen extends StatelessWidget {
           if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
             _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
           
-          // el cliente siempre ve estos botones
-          _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
-          _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
+          // el cliente y el admin ven estos botones; dependiente y almacen no pueden hacer pedidos
+          if (rol == 'cliente' || rol == 'admin')
+            _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
           
-          // conectamos el boton de pedidos a la nueva pantalla de historial, solo visible para clientes
-          if (rol == 'cliente')
+          if (rol == 'cliente' || rol == 'admin')
+            _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
+          
+          // conectamos el boton de pedidos a la nueva pantalla de historial, solo visible para clientes y admin
+          if (rol == 'cliente' || rol == 'admin')
             _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
           
           if (rol == 'admin' || rol == 'dependiente')
