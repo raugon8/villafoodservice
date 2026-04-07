@@ -4,8 +4,11 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/historial_service.dart';
 import '../../models/order_model.dart';
+import '../../models/producto.dart';
+import '../../models/alergeno_model.dart';
 import '../../models/cart_manager.dart';
 import '../../providers/auth_provider.dart';
+import '../screens_client/producto_detalle_screen.dart';
 
 /// muestra la lista de compras pasadas del cliente y gestiona la accion de repetir
 /// evalua la disponibilidad del backend sin borrar lo que ya haya en el carrito
@@ -20,6 +23,8 @@ class _historial_screen_state extends State<historial_screen> {
   final _service = historial_service();
   late Future<List<historial_pedido>> _pedidos_future;
   bool _loading_repetir = false;
+  // IDs de pedidos cuya tarjeta está expandida para ver el desglose de productos
+  final Set<int> _expandidos = {};
 
   @override
   void initState() {
@@ -38,6 +43,31 @@ class _historial_screen_state extends State<historial_screen> {
     });
   }
 
+  /// alterna la expansion de la tarjeta del pedido para mostrar u ocultar el desglose
+  void _toggle_expansion(int pedido_id) {
+    setState(() {
+      if (_expandidos.contains(pedido_id)) {
+        _expandidos.remove(pedido_id);
+      } else {
+        _expandidos.add(pedido_id);
+      }
+    });
+  }
+
+  /// construye un objeto producto minimo para navegar a su pantalla de detalle
+  /// la pantalla de detalle cargara los ingredientes completos desde el backend
+  producto _producto_desde_historial(historial_producto p) {
+    return producto(
+      producto_id:          p.producto_id,
+      producto_nombre:      p.nombre,
+      producto_precio_unitario: p.precio_unitario,
+      producto_categoria:   '',
+      unidades_disponibles: 0,
+      disponible:           false,
+      alergenos:            [],
+    );
+  }
+
   /// inyecta los productos viables directamente en la cesta global de la app
   /// respeta la cantidad original del pedido llamando add_item tantas veces como unidades habia
   ///
@@ -51,7 +81,7 @@ class _historial_screen_state extends State<historial_screen> {
         cart_manager.add_item(
           prod['producto_id'],
           prod['nombre'],
-          double.parse(prod['precio_unitario'].toString()),  // ← así
+          double.parse(prod['precio_unitario'].toString()),
         );
       }
     }
@@ -173,6 +203,8 @@ class _historial_screen_state extends State<historial_screen> {
                 itemCount: snapshot.data!.length,
                 itemBuilder: (context, index) {
                   final item = snapshot.data![index];
+                  final expandido = _expandidos.contains(item.pedido_id);
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
                     child: Padding(
@@ -180,17 +212,67 @@ class _historial_screen_state extends State<historial_screen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('${loc.ord_det_order}${item.pedido_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Chip(label: Text(item.estado, style: const TextStyle(fontSize: 12))),
-                            ],
+                          // cabecera del pedido — pulsar para expandir el desglose
+                          InkWell(
+                            onTap: () => _toggle_expansion(item.pedido_id),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${loc.ord_det_order}${item.pedido_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Row(
+                                  children: [
+                                    Chip(label: Text(item.estado, style: const TextStyle(fontSize: 12))),
+                                    Icon(expandido ? Icons.expand_less : Icons.expand_more),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // fecha del pedido
+                          Text(
+                            '${item.fecha.day.toString().padLeft(2,'0')}/${item.fecha.month.toString().padLeft(2,'0')}/${item.fecha.year}  ${item.fecha.hour.toString().padLeft(2,'0')}:${item.fecha.minute.toString().padLeft(2,'0')}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 8),
-                          // lista de productos resumida
-                          Text('${item.productos.length} ${loc.ord_det_products_title}', style: const TextStyle(color: Colors.grey)),
-                          const Divider(),
+
+                          // desglose de productos — visible solo cuando la tarjeta esta expandida
+                          if (expandido) ...[
+                            const Divider(),
+                            ...item.productos.map((p) => InkWell(
+                              // al pulsar en un producto navega a su detalle con ingredientes
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => producto_detalle_screen(item: _producto_desde_historial(p))),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.restaurant, size: 14, color: Colors.grey),
+                                          const SizedBox(width: 6),
+                                          Expanded(child: Text('${p.cantidad}x ${p.nombre}', style: const TextStyle(fontSize: 14))),
+                                          // indicacion de que se puede pulsar para ver ingredientes
+                                          const Icon(Icons.info_outline, size: 14, color: Colors.blue),
+                                        ],
+                                      ),
+                                    ),
+                                    Text('€${(p.precio_unitario * p.cantidad).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            )).toList(),
+                            const Divider(),
+                          ] else ...[
+                            // resumen colapsado
+                            Text('${item.productos.length} ${loc.ord_det_products_title}', style: const TextStyle(color: Colors.grey)),
+                            const Divider(),
+                          ],
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
