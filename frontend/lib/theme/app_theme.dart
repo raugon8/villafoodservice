@@ -1,21 +1,48 @@
 import 'package:flutter/material.dart';
-// tema principal de la aplicacion con colores accesibles
+
 class app_theme {
-  static ThemeData get theme {
+  // modo claro
+  static ThemeData get lightTheme {
     return ThemeData(
-      primaryColor: const Color(0xFF1A6BB5), // azul accesible (contraste 5.5:1 con texto blanco)
-      scaffoldBackgroundColor: const Color(0xFFFFFFFF), // blanco general
+      brightness: Brightness.light,
+      primaryColor: const Color(0xFF1A6BB5),
+      scaffoldBackgroundColor: const Color(0xFFFFFFFF),
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF1A6BB5),
-        secondary: Color(0xFFF5C842), // amarillo claro para destacados
-        surface: Color(0xFFF2F2F2), // gris claro para tarjetas
-        onPrimary: Colors.white, // texto sobre azul
-        onSecondary: Color(0xFF212121), // texto oscuro sobre amarillo por contraste (ratio 10.13:1)
-        onSurface: Color(0xFF212121), // texto sobre tarjetas
+        secondary: Color(0xFFF5C842),
+        surface: Color(0xFFF2F2F2),
+        onPrimary: Colors.white,
+        onSecondary: Color(0xFF212121),
+        onSurface: Color(0xFF212121),
       ),
       textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: Color(0xFF212121)), // gris oscuro principal (ratio 16.1:1 sobre blanco)
-        bodyMedium: TextStyle(color: Color(0xFF757575)), // gris medio secundario
+        bodyLarge: TextStyle(color: Color(0xFF212121)),
+        bodyMedium: TextStyle(color: Color(0xFF757575)),
+      ),
+    );
+  }
+
+  // modo oscuro
+  static ThemeData get darkTheme {
+    return ThemeData(
+      brightness: Brightness.dark,
+      primaryColor: const Color(0xFF1A6BB5), // Mantenemos el azul de marca
+      scaffoldBackgroundColor: const Color(0xFF121212), // Gris muy oscuro (mejor que negro puro)
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF1A6BB5),
+        secondary: Color(0xFFF5C842),
+        surface: Color(0xFF1E1E1E), // Tarjetas ligeramente más claras que el fondo
+        onPrimary: Colors.white,
+        onSecondary: Color(0xFF212121),
+        onSurface: Colors.white,
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Color(0xFFE0E0E0)),
+        bodyMedium: TextStyle(color: Color(0xFFAAAAAA)),
+      ),
+      cardTheme: const CardThemeData(
+        color: Color(0xFF1E1E1E),
+        elevation: 2,
       ),
     );
   }

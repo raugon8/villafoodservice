@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart'; // Importante importar esto
 import '../../widgets/text_scale_toggle.dart';
 import '../../screens/screens_auth/role_selector_screen.dart';
 import '../../screens/screens_auth/login_screen.dart';
@@ -15,14 +16,9 @@ import '../../screens/admin/dashboard_screen.dart';
 import '../../screens/admin/category_management_screen.dart';
 import '../../screens/admin/user_management_screen.dart';
 
-/// pantalla principal que filtra opciones segun el rol del usuario
 class home_screen extends StatelessWidget {
   const home_screen({super.key});
 
-  /// formatea el nombre del rol para mostrarlo en la interfaz
-  ///
-  /// args:
-  ///   rol (String?): el rol actual del usuario en formato de base de datos
   String _rol_display(String? rol, AppLocalizations loc) {
     switch (rol) {
       case 'admin':       return loc.home_rol_admin;
@@ -36,8 +32,12 @@ class home_screen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<auth_provider>(context);
+    final theme_prov = Provider.of<theme_provider>(context);
     final loc = AppLocalizations.of(context)!;
     final String? rol = auth.current_role;
+
+    // Detectar si estamos en una pantalla ancha (Web/Tablet)
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       appBar: AppBar(
@@ -52,11 +52,18 @@ class home_screen extends StatelessWidget {
           ],
         ),
         actions: [
+          //boton modo oscuro
+          IconButton(
+            icon: Icon(theme_prov.is_dark_mode ? Icons.light_mode : Icons.dark_mode),
+            tooltip: 'Cambiar tema',
+            onPressed: () => theme_prov.toggle_theme(),
+          ),
+          
           const text_scale_toggle(),
           
           if (auth.available_roles.length > 1)
             IconButton(
-              icon: const Icon(Icons.swap_horiz),
+              icon: const Icon(Icons.switch_account), // Icono más intuitivo
               tooltip: loc.home_cambiar_rol,
               onPressed: () => Navigator.pushReplacement(
                 context,
@@ -78,63 +85,73 @@ class home_screen extends StatelessWidget {
           ),
         ],
       ),
-      body: GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (rol == 'admin') ...[
-            _crear_boton(context, Icons.analytics, loc.home_btn_dashboard, loc.home_desc_dashboard, const dashboard_screen()),
-            _crear_boton(context, Icons.people, loc.home_btn_usuarios, loc.home_desc_usuarios, const user_management_screen()),
-            _crear_boton(context, Icons.category, loc.home_btn_categorias, loc.home_desc_categorias, const category_management_screen()),
-          ],
-          
-          if (rol == 'admin' || rol == 'almacen')
-            _crear_boton(context, Icons.kitchen, loc.home_btn_ingredientes, loc.home_desc_ingredientes, const ingredientes_list_screen()),
-          
-          if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
-            _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
-          
-          // el cliente y el admin ven estos botones; dependiente y almacen no pueden hacer pedidos
-          if (rol == 'cliente' || rol == 'admin')
-            _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
-          
-          if (rol == 'cliente' || rol == 'admin')
-            _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
-          
-          // conectamos el boton de pedidos a la nueva pantalla de historial, solo visible para clientes y admin
-          if (rol == 'cliente' || rol == 'admin')
-            _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
-          
-          if (rol == 'admin' || rol == 'dependiente')
-            _crear_boton(context, Icons.assignment, loc.home_btn_staff, loc.home_desc_staff, const order_list_screen()),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          // Tope de 1200px 
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: GridView.count(
+            // Magia Responsive: 4 columnas en Web, 2 en Móvil
+            crossAxisCount: isDesktop ? 4 : 2, 
+            childAspectRatio: isDesktop ? 1.3 : 1.0, // Botones un poco más anchos en web
+            padding: const EdgeInsets.all(20),
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            children: [
+              if (rol == 'admin') ...[
+                _crear_boton(context, Icons.analytics, loc.home_btn_dashboard, loc.home_desc_dashboard, const dashboard_screen()),
+                _crear_boton(context, Icons.people, loc.home_btn_usuarios, loc.home_desc_usuarios, const user_management_screen()),
+                _crear_boton(context, Icons.category, loc.home_btn_categorias, loc.home_desc_categorias, const category_management_screen()),
+              ],
+              
+              if (rol == 'admin' || rol == 'almacen')
+                _crear_boton(context, Icons.kitchen, loc.home_btn_ingredientes, loc.home_desc_ingredientes, const ingredientes_list_screen()),
+              
+              if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
+                _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
+              
+              if (rol == 'cliente' || rol == 'admin')
+                _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
+              
+              if (rol == 'cliente' || rol == 'admin')
+                _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
+              
+              if (rol == 'cliente' || rol == 'admin')
+                _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
+              
+              if (rol == 'admin' || rol == 'dependiente')
+                _crear_boton(context, Icons.assignment, loc.home_btn_staff, loc.home_desc_staff, const order_list_screen()),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  /// construye botones con soporte para lectores de pantalla
-  ///
-  /// args:
-  ///   context (BuildContext): el arbol de widgets actual
-  ///   icono (IconData): icono visual del boton
-  ///   texto (String): titulo corto del boton
-  ///   label_accesibilidad (String): descripcion larga para el lector de pantalla
-  ///   pantalla (Widget): pantalla destino a la que navega
   Widget _crear_boton(BuildContext context, IconData icono, String texto, String label_accesibilidad, Widget pantalla) {
     return Semantics(
       label: label_accesibilidad,
       button: true,
-      child: GestureDetector(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => pantalla)),
-        excludeFromSemantics: true,
-        child: Card(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icono, size: 40, color: Theme.of(context).primaryColor),
-              const SizedBox(height: 8),
-              Text(texto, style: const TextStyle(fontWeight: FontWeight.bold))
-            ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => pantalla)),
+          excludeFromSemantics: true,
+          child: Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icono, size: 48, color: Theme.of(context).primaryColor),
+                const SizedBox(height: 12),
+                Text(
+                  texto, 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  textAlign: TextAlign.center,
+                )
+              ],
+            ),
           ),
         ),
       ),

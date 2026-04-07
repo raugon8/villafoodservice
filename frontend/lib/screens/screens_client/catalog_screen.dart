@@ -26,7 +26,6 @@ class _catalog_screen_state extends State<catalog_screen> {
 
   List<producto> _productos = [];
   List<category_model> _categorias = [];
-  // IDs de tipos de comida seleccionados para filtro multi-seleccion
   Set<int> _category_ids_seleccionados = {};
   bool _loading = false;
   String? _error;
@@ -42,14 +41,11 @@ class _catalog_screen_state extends State<catalog_screen> {
     _buscar();
   }
 
-  /// carga los tipos de comida del backend para mostrarlos como chips de filtro
   Future<void> _cargar_categorias() async {
     try {
       final cats = await _category_service.list_categories(active_only: true);
       setState(() => _categorias = cats);
-    } catch (_) {
-      // si falla la carga de categorias, el filtro de servicio sigue funcionando
-    }
+    } catch (_) {}
   }
 
   Future<void> _buscar() async {
@@ -61,7 +57,6 @@ class _catalog_screen_state extends State<catalog_screen> {
         current_role: auth.current_role ?? 'cliente',
         query: _search_controller.text.isEmpty ? null : _search_controller.text,
         service: _categoria_seleccionada == 'Todas' ? null : _categoria_seleccionada,
-        // pasamos la lista de IDs seleccionados; si esta vacia no se aplica el filtro
         category_ids: _category_ids_seleccionados.isEmpty ? null : _category_ids_seleccionados.toList(),
         available_only: false,
         sort_by: _sort_by,
@@ -81,7 +76,6 @@ class _catalog_screen_state extends State<catalog_screen> {
     });
   }
 
-  /// alterna la seleccion de un tipo de comida — si ya estaba seleccionado lo quita, si no lo añade
   void _toggle_category(int category_id) {
     setState(() {
       if (_category_ids_seleccionados.contains(category_id)) {
@@ -104,8 +98,8 @@ class _catalog_screen_state extends State<catalog_screen> {
     final loc = AppLocalizations.of(context)!;
     final locale_prov = Provider.of<locale_provider>(context);
     final is_spanish = locale_prov.locale.languageCode == 'es';
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    // Generamos las opciones de orden usando el idioma actual
     final Map<String, String> _sort_options = {
       'name_asc': loc.sort_nombre_az,
       'name_desc': loc.sort_nombre_za,
@@ -119,7 +113,6 @@ class _catalog_screen_state extends State<catalog_screen> {
       appBar: AppBar(
         title: Text(loc.catalogo_titulo),
         actions: [
-          // acceso directo al carrito desde el catalogo
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             tooltip: loc.home_btn_carrito,
@@ -140,6 +133,7 @@ class _catalog_screen_state extends State<catalog_screen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -163,46 +157,42 @@ class _catalog_screen_state extends State<catalog_screen> {
               ),
             ),
           ),
-          // filtro por servicio (Cafetería, Restaurante, Repostería)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: -8, 
               children: ['Todas', 'Cafetería', 'Restaurante', 'Repostería'].map((cat) {
-                // Si la categoría es 'Todas', mostramos su traducción, sino la mostramos tal cual (regla del backend)
                 final cat_display = cat == 'Todas' ? loc.catalogo_todas : cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(cat_display),
-                    selected: _categoria_seleccionada == cat,
-                    onSelected: (_) { setState(() => _categoria_seleccionada = cat); _buscar(); },
-                  ),
+                return FilterChip(
+                  label: Text(cat_display),
+                  selected: _categoria_seleccionada == cat,
+                  onSelected: (_) { setState(() => _categoria_seleccionada = cat); _buscar(); },
                 );
               }).toList(),
             ),
           ),
-          // filtro por tipo de comida (multi-seleccion) — se carga dinamicamente del backend
+          
           if (_categorias.isNotEmpty)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Row(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: -8,
                 children: _categorias.map((cat) {
                   final seleccionada = _category_ids_seleccionados.contains(cat.category_id);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(cat.category_name),
-                      selected: seleccionada,
-                      // se pueden seleccionar varios a la vez (OR entre tipos)
-                      onSelected: (_) => _toggle_category(cat.category_id),
-                    ),
+                  return FilterChip(
+                    label: Text(cat.category_name),
+                    selected: seleccionada,
+                    onSelected: (_) => _toggle_category(cat.category_id),
                   );
                 }).toList(),
               ),
             ),
+          
           const SizedBox(height: 8),
+          
           Expanded(
             child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -228,11 +218,23 @@ class _catalog_screen_state extends State<catalog_screen> {
                   )
                 : _productos.isEmpty
                   ? Center(child: Text(loc.catalogo_sin_resultados, style: const TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _productos.length,
-                      itemBuilder: (context, index) => _build_producto_card(_productos[index], loc),
-                    ),
+                  : isDesktop
+                      ? GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 400,
+                            childAspectRatio: 2.5,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: _productos.length,
+                          itemBuilder: (context, index) => _build_producto_card(_productos[index], loc),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: _productos.length,
+                          itemBuilder: (context, index) => _build_producto_card(_productos[index], loc),
+                        ),
           ),
         ],
       ),
@@ -244,61 +246,88 @@ class _catalog_screen_state extends State<catalog_screen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (p.image_url != null && p.image_url!.isNotEmpty)
-            CachedNetworkImage(
-              imageUrl: p.image_url!,
-              height: 140,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const SizedBox(height: 140, child: Center(child: CircularProgressIndicator())),
-              errorWidget: (context, url, error) => _placeholder_imagen(),
+            SizedBox(
+              width: 120,
+              height: 120,
+              child: CachedNetworkImage(
+                imageUrl: p.image_url!,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) => _placeholder_imagen(),
+              ),
             )
           else
-            _placeholder_imagen(),
+            SizedBox(
+              width: 120,
+              height: 120,
+              child: _placeholder_imagen(),
+            ),
             
-          ListTile(
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => producto_detalle_screen(item: p)));
-            },
-            title: Row(
-              children: [
-                Expanded(child: Text(p.producto_nombre, style: const TextStyle(fontWeight: FontWeight.bold))),
-                if (tiene_alergenos)
-                  const Tooltip(message: 'contiene alergenos', child: Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20)),
-              ],
+          Expanded(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => producto_detalle_screen(item: p)));
+              },
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.producto_nombre, 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  ),
+                  if (tiene_alergenos)
+                    const Tooltip(message: 'Contiene alérgenos', child: Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20)),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  if (p.producto_descripcion != null && p.producto_descripcion!.isNotEmpty)
+                    Text(
+                      p.producto_descripcion!, 
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text('€${p.producto_precio_unitario.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                        child: Text(p.producto_categoria, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 10)),
+                      ),
+                      Text(p.disponible ? '${p.unidades_disponibles} ${loc.catalogo_uds}' : loc.catalogo_sin_stock,
+                        style: TextStyle(color: p.disponible ? Colors.blue : Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: p.disponible
+                ? IconButton(
+                    icon: const Icon(Icons.add_shopping_cart, color: Colors.orange),
+                    onPressed: () {
+                      cart_manager.add_item(p.producto_id, p.producto_nombre, p.producto_precio_unitario);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('${p.producto_nombre} ${loc.catalogo_anadido}'), duration: const Duration(seconds: 1), backgroundColor: Colors.green),
+                      );
+                    },
+                  )
+                : const Icon(Icons.remove_shopping_cart, color: Colors.grey),
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (p.producto_descripcion != null && p.producto_descripcion!.isNotEmpty)
-                  Text(p.producto_descripcion!, style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text('€${p.producto_precio_unitario.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    Text(p.producto_categoria, style: TextStyle(color: Colors.grey[600], fontSize: 11)),
-                    const SizedBox(width: 8),
-                    Text(p.disponible ? '${p.unidades_disponibles} ${loc.catalogo_uds}' : loc.catalogo_sin_stock,
-                      style: TextStyle(color: p.disponible ? Colors.blue : Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
-            ),
-            trailing: p.disponible
-              ? IconButton(
-                  icon: const Icon(Icons.add_shopping_cart, color: Colors.orange),
-                  onPressed: () {
-                    cart_manager.add_item(p.producto_id, p.producto_nombre, p.producto_precio_unitario);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${p.producto_nombre} ${loc.catalogo_anadido}'), duration: const Duration(seconds: 1), backgroundColor: Colors.green),
-                    );
-                  },
-                )
-              : const Icon(Icons.remove_shopping_cart, color: Colors.grey),
           ),
         ],
       ),
@@ -306,6 +335,9 @@ class _catalog_screen_state extends State<catalog_screen> {
   }
 
   Widget _placeholder_imagen() {
-    return Container(height: 100, width: double.infinity, color: Colors.grey.shade200, child: const Icon(Icons.restaurant, size: 40, color: Colors.grey));
+    return Container(
+      color: Colors.grey.shade200, 
+      child: const Center(child: Icon(Icons.restaurant, size: 40, color: Colors.grey))
+    );
   }
 }

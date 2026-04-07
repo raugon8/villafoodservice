@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart'; 
 import '../../providers/locale_provider.dart';
+import '../../providers/theme_provider.dart'; // Añadido el theme_provider
 import '../../../services/api_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../screens_home/home_screen.dart';
@@ -25,7 +26,6 @@ class _login_screen_state extends State<login_screen> {
   void ejecutar_login() async {
     if (email_controller.text.isEmpty || pass_controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        // usamos el texto traducido para el error
         SnackBar(content: Text(AppLocalizations.of(context)!.error_campos))
       );
       return;
@@ -63,18 +63,105 @@ class _login_screen_state extends State<login_screen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Obtenemos las traducciones de esta pantalla
     final localizations = AppLocalizations.of(context)!;
-    // 2. Obtenemos el proveedor de idiomas para el botón de la bandera
     final locale_prov = Provider.of<locale_provider>(context);
+    final theme_prov = Provider.of<theme_provider>(context); // Obtenemos el tema
     final is_spanish = locale_prov.locale.languageCode == 'es';
+    
+    // Detectamos si es pantalla grande 
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    // formulario
+    final formCard = Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(32), // Padding más generoso
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Si es móvil, mostramos el icono arriba. Si es web, ya hay un logo gigante a la izquierda
+            if (!isDesktop) ...[
+              Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
+              const SizedBox(height: 24),
+            ],
+            
+            if (isDesktop) ...[
+              Text(localizations.login_titulo, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+            ],
+            
+            Semantics(
+              label: 'campo de correo electronico',
+              child: TextField(
+                controller: email_controller,
+                decoration: InputDecoration(
+                  labelText: localizations.login_email,
+                  prefixIcon: const Icon(Icons.email),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                )
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            Semantics(
+              label: 'campo de contraseña',
+              child: TextField(
+                controller: pass_controller,
+                decoration: InputDecoration(
+                  labelText: localizations.login_password,
+                  prefixIcon: const Icon(Icons.lock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                obscureText: true
+              ),
+            ),
+            const SizedBox(height: 32),
+            
+            loading
+              ? const CircularProgressIndicator()
+              : Semantics(
+                  label: 'boton para iniciar sesion',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52, // Botón un poco más alto
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: ejecutar_login,
+                      child: Text(localizations.login_boton, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+                    ),
+                  ),
+                ),
+            const SizedBox(height: 16),
+            
+            TextButton(
+              onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (c) => const register_screen())
+              ),
+              child: Text(localizations.login_registro, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+            ),
+          ],
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations.login_titulo), // titulo traducido
-        centerTitle: true,
+        title: isDesktop ? const Text('Villafood') : Text(localizations.login_titulo),
+        centerTitle: !isDesktop,
         actions: [
-          // --- BOTÓN DE IDIOMA (TAREA 17) ---
+          // BOTÓN MODO OSCURO
+          IconButton(
+            icon: Icon(theme_prov.is_dark_mode ? Icons.light_mode : Icons.dark_mode),
+            tooltip: 'Modo Oscuro/Claro',
+            onPressed: () => theme_prov.toggle_theme(),
+          ),
+          // BOTÓN DE IDIOMA
           Semantics(
             label: is_spanish ? 'Cambiar idioma a inglés' : 'Change language to Spanish',
             button: true,
@@ -83,91 +170,64 @@ class _login_screen_state extends State<login_screen> {
                 is_spanish ? '🇪🇸' : '🇬🇧', 
                 style: const TextStyle(fontSize: 24),
               ),
-              onPressed: () {
-                locale_prov.toggle_locale();
-              },
+              onPressed: () => locale_prov.toggle_locale(),
             ),
           ),
-          // ----------------------------------
           const text_scale_toggle()
         ],
       ),
-      // centra el contenido y permite scroll para el teclado
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // icono decorativo de la app
-                  Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
-                  const SizedBox(height: 24),
-                  
-                  Semantics(
-                    label: 'campo de correo electronico',
-                    child: TextField(
-                      controller: email_controller,
-                      decoration: InputDecoration(
-                        labelText: localizations.login_email, // label traducido
-                        prefixIcon: const Icon(Icons.email),
-                        border: const OutlineInputBorder(),
-                      )
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  Semantics(
-                    label: 'campo de contraseña',
-                    child: TextField(
-                      controller: pass_controller,
-                      decoration: InputDecoration(
-                        labelText: localizations.login_password, // label traducido
-                        prefixIcon: const Icon(Icons.lock),
-                        border: const OutlineInputBorder(),
-                      ),
-                      obscureText: true
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  loading
-                    ? const CircularProgressIndicator()
-                    : Semantics(
-                        label: 'boton para iniciar sesion',
-                        button: true,
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: ejecutar_login,
-                            child: Text(localizations.login_boton, style: const TextStyle(fontSize: 16)) // botón traducido
-                          ),
+      
+      // responsive
+      body: isDesktop
+        ? Row(
+            children: [
+              // mitad izquierda (Banner Decorativo para Web)
+              Expanded(
+                flex: 5,
+                child: Container(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.restaurant_menu, size: 160, color: Theme.of(context).primaryColor),
+                      const SizedBox(height: 32),
+                      Text(
+                        'Villafood Service', 
+                        style: TextStyle(
+                          fontSize: 40, 
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).primaryColor
                         ),
                       ),
-                  const SizedBox(height: 12),
-                  
-                  TextButton(
-                    onPressed: () => Navigator.push(
-                      context, MaterialPageRoute(builder: (c) => const register_screen())
-                    ),
-                    child: Text(localizations.login_registro, style: const TextStyle(color: Colors.grey, fontSize: 13)), // texto registro traducido
+                    ],
                   ),
-                ],
+                ),
+              ),
+              // Mitad Derecha (Formulario)
+              Expanded(
+                flex: 4,
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 450), // Cajetillas más anchas en web
+                      child: formCard,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : Center(
+            // version movil
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: formCard,
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
