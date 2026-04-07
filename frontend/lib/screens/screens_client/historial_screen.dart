@@ -51,7 +51,7 @@ class _historial_screen_state extends State<historial_screen> {
         cart_manager.add_item(
           prod['producto_id'],
           prod['nombre'],
-          (prod['precio_unitario'] as num).toDouble(),
+          double.parse(prod['precio_unitario'].toString()),  // ← así
         );
       }
     }
