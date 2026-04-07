@@ -41,19 +41,30 @@ class home_screen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            const Text('villafood', style: TextStyle(fontSize: 16)),
-            Text(
-              '${loc.home_sesion_como}${_rol_display(rol, loc)}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            // logo de la app en el appbar
+            Image.asset(
+              'assets/logo.png',
+              height: 36,
+              errorBuilder: (c, e, s) => const Icon(Icons.restaurant, size: 36),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('VillaFood', style: TextStyle(fontSize: 16)),
+                Text(
+                  '${loc.home_sesion_como}${_rol_display(rol, loc)}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
           const text_scale_toggle(),
-          
+
           if (auth.available_roles.length > 1)
             IconButton(
               icon: const Icon(Icons.swap_horiz),
@@ -63,7 +74,7 @@ class home_screen extends StatelessWidget {
                 MaterialPageRoute(builder: (c) => const role_selector_screen())
               ),
             ),
-          
+
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: loc.home_cerrar_sesion,
@@ -87,24 +98,24 @@ class home_screen extends StatelessWidget {
             _crear_boton(context, Icons.people, loc.home_btn_usuarios, loc.home_desc_usuarios, const user_management_screen()),
             _crear_boton(context, Icons.category, loc.home_btn_categorias, loc.home_desc_categorias, const category_management_screen()),
           ],
-          
+
           if (rol == 'admin' || rol == 'almacen')
             _crear_boton(context, Icons.kitchen, loc.home_btn_ingredientes, loc.home_desc_ingredientes, const ingredientes_list_screen()),
-          
+
           if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
             _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
-          
+
           // el cliente y el admin ven estos botones; dependiente y almacen no pueden hacer pedidos
           if (rol == 'cliente' || rol == 'admin')
             _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
-          
+
           if (rol == 'cliente' || rol == 'admin')
             _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
-          
+
           // conectamos el boton de pedidos a la nueva pantalla de historial, solo visible para clientes y admin
           if (rol == 'cliente' || rol == 'admin')
             _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
-          
+
           if (rol == 'admin' || rol == 'dependiente')
             _crear_boton(context, Icons.assignment, loc.home_btn_staff, loc.home_desc_staff, const order_list_screen()),
         ],
