@@ -7,7 +7,7 @@ RUN flutter pub get
 RUN flutter build web --release \
     --dart-define=API_URL=https://villafoodservice-production.up.railway.app \
     --dart-define=SUPABASE_URL=https://tvflsjhtybzwbqxciciv.supabase.co \
-    --dart-define=SUPABASE_ANON_KEY=mock_key
+    --dart-define=SUPABASE_ANON_KEY=sb_publishable_GTDvC1bJvbUYLpNz_2raKQ_SedJ_8lL
 
 # Fase 2: servir con nginx adaptado al puerto de Railway
 FROM nginx:alpine
