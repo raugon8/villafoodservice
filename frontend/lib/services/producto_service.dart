@@ -95,12 +95,13 @@ class producto_service {
   }
 
   // endpoint complejo (tarea 9): procesa todos los filtros del buscador desde la app
+  // category_ids permite multi-seleccion de tipos de comida (OR entre categorias)
   Future<List<producto>> search_products({
     required int user_id,
     required String current_role,
     String? query,
     String? service,
-    int? category_id,
+    List<int>? category_ids,
     bool available_only = false,
     double? min_price,
     double? max_price,
@@ -112,7 +113,12 @@ class producto_service {
     String url = '$base_url/productos/search?current_role=$current_role&sort_by=$sort_by&skip=$skip&limit=$limit&active_only=$active_only&available_only=$available_only';
     if (query != null && query.isNotEmpty) url += '&search_query=$query';
     if (service != null) url += '&service=$service';
-    if (category_id != null) url += '&category_id=$category_id';
+    // cada category_id se añade como parametro separado para que FastAPI los reciba como lista
+    if (category_ids != null && category_ids.isNotEmpty) {
+      for (final id in category_ids) {
+        url += '&category_ids=$id';
+      }
+    }
     if (min_price != null) url += '&min_price=$min_price';
     if (max_price != null) url += '&max_price=$max_price';
 
@@ -169,4 +175,3 @@ class producto_service {
     }
   }
 }
-

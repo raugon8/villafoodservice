@@ -38,13 +38,15 @@ def search_products(db: Session, filters: ProductSearchFilters) -> ProductSearch
         conditions.append("p.producto_categoria = :service")
         params["service"] = filters.service
 
-    if filters.category_id:
-        conditions.append("""EXISTS (
+    if filters.category_ids:
+        # Filtra productos que pertenezcan a cualquiera de las categorias seleccionadas (OR).
+        # Los IDs se insertan directamente porque son enteros validados por Pydantic, sin riesgo de inyeccion.
+        ids_str = ",".join(str(i) for i in filters.category_ids)
+        conditions.append(f"""EXISTS (
             SELECT 1 FROM category_products cp
             WHERE cp.product_id = p.producto_id
-            AND cp.category_id = :category_id
+            AND cp.category_id IN ({ids_str})
         )""")
-        params["category_id"] = filters.category_id
 
     if filters.min_price is not None:
         conditions.append('p."producto_precioUnitario" >= :min_price')

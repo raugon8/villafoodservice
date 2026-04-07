@@ -5,7 +5,9 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/producto_service.dart';
+import '../../services/category_service.dart';
 import '../../models/producto.dart';
+import '../../models/category_model.dart';
 import '../../models/cart_manager.dart';
 import 'producto_detalle_screen.dart'; 
 import 'cart_screen.dart';
@@ -19,9 +21,13 @@ class catalog_screen extends StatefulWidget {
 
 class _catalog_screen_state extends State<catalog_screen> {
   final _service = producto_service();
+  final _category_service = category_service();
   final _search_controller = TextEditingController();
 
   List<producto> _productos = [];
+  List<category_model> _categorias = [];
+  // IDs de tipos de comida seleccionados para filtro multi-seleccion
+  Set<int> _category_ids_seleccionados = {};
   bool _loading = false;
   String? _error;
 
@@ -32,7 +38,18 @@ class _catalog_screen_state extends State<catalog_screen> {
   @override
   void initState() {
     super.initState();
+    _cargar_categorias();
     _buscar();
+  }
+
+  /// carga los tipos de comida del backend para mostrarlos como chips de filtro
+  Future<void> _cargar_categorias() async {
+    try {
+      final cats = await _category_service.list_categories(active_only: true);
+      setState(() => _categorias = cats);
+    } catch (_) {
+      // si falla la carga de categorias, el filtro de servicio sigue funcionando
+    }
   }
 
   Future<void> _buscar() async {
@@ -44,6 +61,8 @@ class _catalog_screen_state extends State<catalog_screen> {
         current_role: auth.current_role ?? 'cliente',
         query: _search_controller.text.isEmpty ? null : _search_controller.text,
         service: _categoria_seleccionada == 'Todas' ? null : _categoria_seleccionada,
+        // pasamos la lista de IDs seleccionados; si esta vacia no se aplica el filtro
+        category_ids: _category_ids_seleccionados.isEmpty ? null : _category_ids_seleccionados.toList(),
         available_only: false,
         sort_by: _sort_by,
       );
@@ -60,6 +79,18 @@ class _catalog_screen_state extends State<catalog_screen> {
         _buscar();
       }
     });
+  }
+
+  /// alterna la seleccion de un tipo de comida — si ya estaba seleccionado lo quita, si no lo añade
+  void _toggle_category(int category_id) {
+    setState(() {
+      if (_category_ids_seleccionados.contains(category_id)) {
+        _category_ids_seleccionados.remove(category_id);
+      } else {
+        _category_ids_seleccionados.add(category_id);
+      }
+    });
+    _buscar();
   }
 
   @override
@@ -132,6 +163,7 @@ class _catalog_screen_state extends State<catalog_screen> {
               ),
             ),
           ),
+          // filtro por servicio (Cafetería, Restaurante, Repostería)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -150,6 +182,26 @@ class _catalog_screen_state extends State<catalog_screen> {
               }).toList(),
             ),
           ),
+          // filtro por tipo de comida (multi-seleccion) — se carga dinamicamente del backend
+          if (_categorias.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: _categorias.map((cat) {
+                  final seleccionada = _category_ids_seleccionados.contains(cat.category_id);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(cat.category_name),
+                      selected: seleccionada,
+                      // se pueden seleccionar varios a la vez (OR entre tipos)
+                      onSelected: (_) => _toggle_category(cat.category_id),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           const SizedBox(height: 8),
           Expanded(
             child: _loading

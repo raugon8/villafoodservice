@@ -94,7 +94,7 @@ class ProductSearchFilters(BaseModel):
     """Filtros disponibles para la búsqueda avanzada de productos."""
     search_query: Optional[str] = None
     service: Optional[str] = None
-    category_id: Optional[int] = None
+    category_ids: Optional[List[int]] = None  # Permite filtrar por varios tipos de comida a la vez
     available_only: bool = False
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
