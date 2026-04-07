@@ -53,8 +53,7 @@ class _catalog_screen_state extends State<catalog_screen> {
     try {
       final auth = Provider.of<auth_provider>(context, listen: false);
       final results = await _service.search_products(
-        user_id: auth.user_id ?? 0,
-        current_role: auth.current_role ?? 'cliente',
+        token: auth.access_token ?? '', // PASAMOS EL TOKEN
         query: _search_controller.text.isEmpty ? null : _search_controller.text,
         service: _categoria_seleccionada == 'Todas' ? null : _categoria_seleccionada,
         category_ids: _category_ids_seleccionados.isEmpty ? null : _category_ids_seleccionados.toList(),
@@ -157,7 +156,6 @@ class _catalog_screen_state extends State<catalog_screen> {
               ),
             ),
           ),
-          
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Wrap(
@@ -173,7 +171,6 @@ class _catalog_screen_state extends State<catalog_screen> {
               }).toList(),
             ),
           ),
-          
           if (_categorias.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -190,9 +187,7 @@ class _catalog_screen_state extends State<catalog_screen> {
                 }).toList(),
               ),
             ),
-          
           const SizedBox(height: 8),
-          
           Expanded(
             child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -266,7 +261,6 @@ class _catalog_screen_state extends State<catalog_screen> {
               height: 120,
               child: _placeholder_imagen(),
             ),
-            
           Expanded(
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

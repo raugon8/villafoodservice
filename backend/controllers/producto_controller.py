@@ -47,8 +47,6 @@ def listar_productos_disponibles(
 @router.get("/search", response_model=ProductSearchResponse)
 def buscar_productos(
     filters: ProductSearchFilters = Depends(),
-    # category_ids se declara fuera del Depends() porque FastAPI no parsea listas repetidas en Pydantic
-    category_ids: Optional[List[int]] = Query(None),
     current_role: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
@@ -56,8 +54,6 @@ def buscar_productos(
     Los clientes y usuarios no autenticados solo ven productos activos."""
     if current_role == "cliente" or current_role is None:
         filters.active_only = True
-    # inyectamos los category_ids recibidos correctamente en el objeto de filtros
-    filters.category_ids = category_ids
     return product_search_service.search_products(db, filters)
 
 

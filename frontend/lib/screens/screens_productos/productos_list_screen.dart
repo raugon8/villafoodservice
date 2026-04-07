@@ -31,8 +31,9 @@ class _productos_list_screen_state extends State<productos_list_screen> {
 
   /// solicita la lista actualizada de todos los productos al backend
   void _cargar_productos() {
+    final auth = Provider.of<auth_provider>(context, listen: false);
     setState(() {
-      _future_productos = service_instancia.get_productos();
+      _future_productos = service_instancia.get_productos(token: auth.access_token);
     });
   }
 
@@ -58,7 +59,7 @@ class _productos_list_screen_state extends State<productos_list_screen> {
     if (confirmado == true) {
       final auth = Provider.of<auth_provider>(context, listen: false);
       try {
-        await service_instancia.delete_producto(item.producto_id, user_id: auth.user_id!, current_role: auth.current_role!);
+        await service_instancia.delete_producto(item.producto_id, token: auth.access_token!);
         _cargar_productos();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.prod_list_msg_del)));
       } catch (e) {
@@ -72,6 +73,7 @@ class _productos_list_screen_state extends State<productos_list_screen> {
     final loc = AppLocalizations.of(context)!;
     final locale_prov = Provider.of<locale_provider>(context);
     final is_spanish = locale_prov.locale.languageCode == 'es';
+    final auth = Provider.of<auth_provider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -120,11 +122,31 @@ class _productos_list_screen_state extends State<productos_list_screen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // NUEVO: INTERRUPTOR MANUAL DE STOCK
+                      // NUEVO: INTERRUPTOR MANUAL DE STOCK COMPACTO
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min, // Esto es vital para evitar desbordes
                         children: [
-                          Text('${loc.prod_list_stock}${item.unidades_disponibles}'),
-                          Icon(Icons.circle, color: item.disponible ? Colors.green : Colors.red, size: 15),
+                          Text('Stock', style: TextStyle(fontSize: 10, color: Colors.grey[600], height: 1)),
+                          SizedBox(
+                            height: 28, // Forzamos una altura máxima
+                            child: Transform.scale(
+                              scale: 0.7, // Hacemos el Switch un 30% más pequeño para que quepa
+                              child: Switch(
+                                value: item.disponible, 
+                                activeColor: Colors.green,
+                                onChanged: (bool valor_nuevo) async {
+                                  try {
+                                    await service_instancia.toggle_stock(item.producto_id, token: auth.access_token!);
+                                    _cargar_productos(); 
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('error: $e')));
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(width: 8),

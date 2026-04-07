@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart'; 
 import '../../providers/locale_provider.dart';
-import '../../providers/theme_provider.dart'; // Añadido el theme_provider
+import '../../providers/theme_provider.dart';
 import '../../../services/api_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../screens_home/home_screen.dart';
@@ -34,16 +34,19 @@ class _login_screen_state extends State<login_screen> {
     setState(() { loading = true; });
 
     try {
-      final u = await service_instancia.login(
+      // Ahora api_service.login devuelve un Map con 'user', 'token' y 'roles'
+      final res = await service_instancia.login(
         email_controller.text, pass_controller.text
       );
 
-      final roles_response = await service_instancia.get_user_roles(u.usuario_id);
-      final List<String> roles = List<String>.from(roles_response);
-
       if (!mounted) return;
       
-      Provider.of<auth_provider>(context, listen: false).set_user(u.usuario_id, roles);
+      // Guardamos el usuario, los roles y EL TOKEN en el provider
+      Provider.of<auth_provider>(context, listen: false).set_login_data(
+        res['user'].usuario_id, 
+        res['roles'], 
+        res['token']
+      );
 
       Navigator.pushReplacement(
         context, 
@@ -53,7 +56,7 @@ class _login_screen_state extends State<login_screen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red)
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red)
         );
       }
     } finally {
@@ -65,18 +68,15 @@ class _login_screen_state extends State<login_screen> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
     final locale_prov = Provider.of<locale_provider>(context);
-    final theme_prov = Provider.of<theme_provider>(context); // Obtenemos el tema
+    final theme_prov = Provider.of<theme_provider>(context); 
     final is_spanish = locale_prov.locale.languageCode == 'es';
-    
-    // Detectamos si es pantalla grande 
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    // formulario
     final formCard = Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(32), // Padding más generoso
+        padding: const EdgeInsets.all(32), 
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -85,12 +85,10 @@ class _login_screen_state extends State<login_screen> {
               Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
               const SizedBox(height: 24),
             ],
-            
             if (isDesktop) ...[
               Text(localizations.login_titulo, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
             ],
-            
             Semantics(
               label: 'campo de correo electronico',
               child: TextField(
@@ -103,7 +101,6 @@ class _login_screen_state extends State<login_screen> {
               ),
             ),
             const SizedBox(height: 20),
-            
             Semantics(
               label: 'campo de contraseña',
               child: TextField(
@@ -117,7 +114,6 @@ class _login_screen_state extends State<login_screen> {
               ),
             ),
             const SizedBox(height: 32),
-            
             loading
               ? const CircularProgressIndicator()
               : Semantics(
@@ -125,7 +121,7 @@ class _login_screen_state extends State<login_screen> {
                   button: true,
                   child: SizedBox(
                     width: double.infinity,
-                    height: 52, // Botón un poco más alto
+                    height: 52, 
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
@@ -138,7 +134,6 @@ class _login_screen_state extends State<login_screen> {
                   ),
                 ),
             const SizedBox(height: 16),
-            
             TextButton(
               onPressed: () => Navigator.push(
                 context, MaterialPageRoute(builder: (c) => const register_screen())
@@ -161,7 +156,6 @@ class _login_screen_state extends State<login_screen> {
             tooltip: 'Modo Oscuro/Claro',
             onPressed: () => theme_prov.toggle_theme(),
           ),
-          // BOTÓN DE IDIOMA
           Semantics(
             label: is_spanish ? 'Cambiar idioma a inglés' : 'Change language to Spanish',
             button: true,
@@ -210,7 +204,7 @@ class _login_screen_state extends State<login_screen> {
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(32),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 450), // Cajetillas más anchas en web
+                      constraints: const BoxConstraints(maxWidth: 450), 
                       child: formCard,
                     ),
                   ),

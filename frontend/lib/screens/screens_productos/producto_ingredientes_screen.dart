@@ -37,8 +37,9 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
 
   /// solicita al backend la lista de ingredientes de este producto concreto
   void _cargar() {
+    final auth = Provider.of<auth_provider>(context, listen: false);
     setState(() {
-      _future_ingredientes = _prod_service.get_ingredientes_producto(widget.producto_id);
+      _future_ingredientes = _prod_service.get_ingredientes_producto(widget.producto_id, token: auth.access_token);
     });
   }
 
@@ -56,7 +57,8 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
     final cantidad_ctrl = TextEditingController(text: '1.0');
 
     try {
-      disponibles = await _ing_service.get_ingredientes(user_id: user_id, current_role: current_role);
+      // NOTA: Asegúrate de que en ingrediente_service.dart cambies esto para aceptar "token" en vez de user_id
+      disponibles = await _ing_service.get_ingredientes(token: auth.access_token); 
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('error: $e'), backgroundColor: Colors.red));
       return;
@@ -100,7 +102,12 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
                           }
                           Navigator.pop(ctx);
                           try {
-                            await _prod_service.agregar_ingrediente(widget.producto_id, seleccionado!.ingrediente_id, cantidad, user_id: user_id, current_role: current_role);
+                            await _prod_service.agregar_ingrediente(
+                              widget.producto_id, 
+                              seleccionado!.ingrediente_id, 
+                              cantidad, 
+                              token: auth.access_token!
+                            );
                             _cargar();
                             if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.prod_ing_msg_added)));
                           } catch (e) {
@@ -145,7 +152,11 @@ class _producto_ingredientes_screen_state extends State<producto_ingredientes_sc
     if (confirmado == true) {
       final auth = Provider.of<auth_provider>(context, listen: false);
       try {
-        await _prod_service.quitar_ingrediente(widget.producto_id, item.ingrediente_id, user_id: auth.user_id!, current_role: auth.current_role!);
+        await _prod_service.quitar_ingrediente(
+          widget.producto_id, 
+          item.ingrediente_id, 
+          token: auth.access_token!
+        );
         _cargar();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.prod_ing_msg_del)));
       } catch (e) {

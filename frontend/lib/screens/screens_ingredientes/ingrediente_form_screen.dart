@@ -67,9 +67,16 @@ class _ingrediente_form_screen_state extends State<ingrediente_form_screen> {
 
     try {
       if (_es_edicion) {
-        await service_instancia.update_ingrediente(widget.ingrediente_editar!.ingrediente_id, datos, user_id: auth.user_id ?? 1, current_role: auth.current_role ?? 'admin');
+        await service_instancia.update_ingrediente(
+          widget.ingrediente_editar!.ingrediente_id, 
+          datos, 
+          token: auth.access_token! // ENVIAMOS EL TOKEN AQUÍ
+        );
       } else {
-        await service_instancia.create_ingrediente(datos, user_id: auth.user_id ?? 1, current_role: auth.current_role ?? 'admin');
+        await service_instancia.create_ingrediente(
+          datos, 
+          token: auth.access_token! // ENVIAMOS EL TOKEN AQUÍ
+        );
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_es_edicion ? loc.ing_form_updated : loc.ing_form_created)));

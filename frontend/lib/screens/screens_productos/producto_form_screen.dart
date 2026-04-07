@@ -32,7 +32,7 @@ class _producto_form_screen_state extends State<producto_form_screen> {
   List<alergeno> _todos_alergenos = [];
   List<int> _alergenos_seleccionados = [];
 
-  final List<String> _categorias = ['Cafetería', 'Restaurante', 'Repostería'];
+  final List<String> _categorias = ['Cafetería', 'Restaurante', 'Repostería','Menú del día'];
   final _service = producto_service();
   final _api = api_service();
   final _upload_service = image_upload_service();
@@ -54,7 +54,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
     }
   }
 
-  /// carga la lista de alergenos disponibles desde el backend simulado
   Future<void> _cargar_alergenos() async {
     final lista = await _api.get_alergenos_mock();
     setState(() {
@@ -62,7 +61,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
     });
   }
 
-  /// lanza el selector de imagenes y actualiza la url local
   Future<void> _subir_imagen() async {
     setState(() => _is_loading = true);
     final url = await _upload_service.upload_image();
@@ -80,10 +78,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
     super.dispose();
   }
 
-  /// empaqueta los datos del formulario y los envia al backend para crear o actualizar
-  ///
-  /// args:
-  ///   loc (AppLocalizations): diccionario de traduccion activo
   Future<void> _guardar(AppLocalizations loc) async {
     if (!_form_key.currentState!.validate()) return;
     setState(() => _is_loading = true);
@@ -104,14 +98,12 @@ class _producto_form_screen_state extends State<producto_form_screen> {
         await _service.update_producto(
           widget.producto_editar!.producto_id,
           datos,
-          user_id: auth.user_id!,
-          current_role: auth.current_role!,
+          token: auth.access_token!, // PASAMOS EL TOKEN
         );
       } else {
         await _service.create_producto(
           datos,
-          user_id: auth.user_id!,
-          current_role: auth.current_role!,
+          token: auth.access_token!, // PASAMOS EL TOKEN
         );
       }
 
@@ -173,7 +165,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
               TextFormField(
                 controller: _nombre_ctrl,
                 decoration: InputDecoration(labelText: loc.prod_form_name, border: const OutlineInputBorder()),
@@ -205,7 +196,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
-              
               Text(loc.prod_form_allergens, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               if (_todos_alergenos.isEmpty) const CircularProgressIndicator()
@@ -229,7 +219,6 @@ class _producto_form_screen_state extends State<producto_form_screen> {
                 }).toList(),
               ),
               const SizedBox(height: 32),
-
               SizedBox(
                 height: 48,
                 child: ElevatedButton(

@@ -28,9 +28,9 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
   void _cargar() {
     final auth = Provider.of<auth_provider>(context, listen: false);
     setState(() {
+      // ENVIAMOS EL TOKEN EN LUGAR DE USER_ID Y ROLE
       _future_ingredientes = service_instancia.get_ingredientes(
-        user_id: auth.user_id ?? 1,
-        current_role: auth.current_role ?? 'admin',
+        token: auth.access_token, 
       );
     });
   }
@@ -62,7 +62,11 @@ class _ingredientes_list_screen_state extends State<ingredientes_list_screen> {
     if (confirmado == true) {
       try {
         final auth = Provider.of<auth_provider>(context, listen: false);
-        await service_instancia.delete_ingrediente(item.ingrediente_id, user_id: auth.user_id ?? 1, current_role: auth.current_role ?? 'admin');
+        // ENVIAMOS EL TOKEN PARA ELIMINAR
+        await service_instancia.delete_ingrediente(
+          item.ingrediente_id, 
+          token: auth.access_token!
+        );
         _cargar();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.ing_list_deleted)));
       } catch (e) {

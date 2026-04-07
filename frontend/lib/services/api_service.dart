@@ -8,11 +8,19 @@ import '../models/alergeno_model.dart';
 class api_service {
   static const String base_url = AppConstants.apiUrl;
 
+  // Helper para generar cabeceras con JWT
+  Map<String, String> _headers(String? token) {
+    if (token != null && token.isNotEmpty) {
+      return {'content-type': 'application/json', 'Authorization': 'Bearer $token'};
+    }
+    return {'content-type': 'application/json'};
+  }
+
   // registra un nuevo cliente en el backend
   Future<user> register(String nombre, String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/register'),
-      headers: {'content-type': 'application/json'},
+      headers: _headers(null),
       body: jsonEncode({'nombre_usuario': nombre, 'correo': email, 'contraseña': password}),
     );
     if (response.statusCode == 201) {
@@ -26,28 +34,34 @@ class api_service {
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error en el registro');
   }
 
-  // valida credenciales y devuelve el usuario
-  Future<user> login(String email, String password) async {
+  // MODIFICADO: valida credenciales y devuelve datos completos (usuario + token + roles)
+  Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$base_url/auth/login'),
-      headers: {'content-type': 'application/json'},
+      headers: _headers(null),
       body: jsonEncode({'correo': email, 'contraseña': password}),
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return user(
+      final usuario = user(
         usuario_id:     data['usuario_id'],
         nombre_usuario: data['nombre_usuario'],
         correo:         data['correo']
       );
+      return {
+        'user': usuario,
+        'token': data['access_token'],
+        'roles': List<String>.from(data['roles'] ?? ['cliente'])
+      };
     }
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error al iniciar sesion');
   }
 
-  // pide al backend los roles asignados al usuario autenticado
-  Future<List<String>> get_user_roles(int user_id) async {
+  // MODIFICADO: usa el token en la cabecera en lugar de la URL
+  Future<List<String>> get_user_roles(int user_id, String token) async {
     final response = await http.get(
-      Uri.parse('$base_url/usuarios/me/roles?user_id=$user_id'),
+      Uri.parse('$base_url/usuarios/me/roles'), // Ya no pasamos ?user_id=X
+      headers: _headers(token),
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -87,4 +101,3 @@ class api_service {
     ];
   }
 }
-
