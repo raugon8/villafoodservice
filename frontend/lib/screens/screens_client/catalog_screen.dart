@@ -8,6 +8,7 @@ import '../../services/producto_service.dart';
 import '../../models/producto.dart';
 import '../../models/cart_manager.dart';
 import 'producto_detalle_screen.dart'; 
+import 'cart_screen.dart';
 
 class catalog_screen extends StatefulWidget {
   const catalog_screen({super.key});
@@ -87,6 +88,12 @@ class _catalog_screen_state extends State<catalog_screen> {
       appBar: AppBar(
         title: Text(loc.catalogo_titulo),
         actions: [
+          // acceso directo al carrito desde el catalogo
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            tooltip: loc.home_btn_carrito,
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const cart_screen())),
+          ),
           IconButton(
             icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
             onPressed: () => locale_prov.toggle_locale(),
