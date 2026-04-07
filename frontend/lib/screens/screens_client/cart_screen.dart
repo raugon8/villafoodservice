@@ -7,6 +7,7 @@ import '../../models/cart_manager.dart';
 import '../../models/order_model.dart';
 import '../../services/order_service.dart';
 
+
 class cart_screen extends StatefulWidget {
   const cart_screen({super.key});
 
@@ -28,6 +29,24 @@ class _cart_screen_state extends State<cart_screen> {
       item.quantity += delta;
       if (item.quantity <= 0) cart_manager.items.remove(item);
     });
+  }
+
+  /// extrae un mensaje legible del error del backend para mostrarlo al cliente
+  /// el backend puede devolver un string simple o un objeto con 'message' y 'errors'
+  String _mensaje_error_amigable(dynamic error) {
+    final texto = error.toString().replaceAll('Exception: ', '');
+    // si el backend devuelve un json con lista de errores, extraemos solo los nombres de productos
+    if (texto.contains('Algunos productos no están disponibles') || texto.contains('no disponibles')) {
+      return 'Algunos productos de tu carrito ya no están disponibles en la cantidad solicitada. Revisa las cantidades e inténtalo de nuevo.';
+    }
+    if (texto.contains('stock') || texto.contains('Stock')) {
+      return 'No hay suficiente stock de alguno de los productos. Reduce la cantidad e inténtalo de nuevo.';
+    }
+    if (texto.contains('timeout') || texto.contains('tardado')) {
+      return 'La conexión ha tardado demasiado. Comprueba tu conexión a internet e inténtalo de nuevo.';
+    }
+    // mensaje generico amigable para errores desconocidos
+    return 'No se ha podido completar el pedido. Por favor, inténtalo de nuevo en unos momentos.';
   }
 
   Future<void> _confirmar_pedido() async {
@@ -58,7 +77,22 @@ class _cart_screen_state extends State<cart_screen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      // mostramos un dialogo amigable en lugar de un snackbar con texto tecnico
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+          title: const Text('No se pudo realizar el pedido'),
+          content: Text(_mensaje_error_amigable(e), textAlign: TextAlign.center),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
     } finally {
       setState(() => _loading = false);
     }
