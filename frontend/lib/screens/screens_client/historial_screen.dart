@@ -10,8 +10,7 @@ import '../../models/cart_manager.dart';
 import '../../providers/auth_provider.dart';
 import '../screens_client/producto_detalle_screen.dart';
 
-/// muestra la lista de compras pasadas del cliente y gestiona la accion de repetir
-/// evalua la disponibilidad del backend sin borrar lo que ya haya en el carrito
+// lista con todos los tickets viejos del usuario
 class historial_screen extends StatefulWidget {
   const historial_screen({super.key});
 
@@ -23,7 +22,8 @@ class _historial_screen_state extends State<historial_screen> {
   final _service = historial_service();
   late Future<List<historial_pedido>> _pedidos_future;
   bool _loading_repetir = false;
-  // IDs de pedidos cuya tarjeta está expandida para ver el desglose de productos
+  
+  // llevamos la cuenta de que tickets hemos desplegado
   final Set<int> _expandidos = {};
 
   @override
@@ -32,7 +32,7 @@ class _historial_screen_state extends State<historial_screen> {
     _cargar_historial();
   }
 
-  /// lanza la peticion al servicio para descargar la lista de pedidos del usuario
+  // preguntamos a la base de datos por los pedidos de este usuario
   void _cargar_historial() {
     final auth = Provider.of<auth_provider>(context, listen: false);
     setState(() {
@@ -43,7 +43,7 @@ class _historial_screen_state extends State<historial_screen> {
     });
   }
 
-  /// alterna la expansion de la tarjeta del pedido para mostrar u ocultar el desglose
+  // abre o cierra el acordeon de los productos
   void _toggle_expansion(int pedido_id) {
     setState(() {
       if (_expandidos.contains(pedido_id)) {
@@ -54,8 +54,7 @@ class _historial_screen_state extends State<historial_screen> {
     });
   }
 
-  /// construye un objeto producto minimo para navegar a su pantalla de detalle
-  /// la pantalla de detalle cargara los ingredientes completos desde el backend
+  // creamos un producto fantasma rapido para poder abrir su pantalla de detalle
   producto _producto_desde_historial(historial_producto p) {
     return producto(
       producto_id:          p.producto_id,
@@ -68,12 +67,7 @@ class _historial_screen_state extends State<historial_screen> {
     );
   }
 
-  /// inyecta los productos viables directamente en la cesta global de la app
-  /// respeta la cantidad original del pedido llamando add_item tantas veces como unidades habia
-  ///
-  /// args:
-  ///   disponibles (List<dynamic>): lista de productos que han superado el filtro de stock
-  ///   loc (AppLocalizations): diccionario de idiomas activo para los mensajes
+  // mete de golpe en la cesta todo lo que nos confirme el backend que tiene stock
   void _anadir_al_carrito(List<dynamic> disponibles, AppLocalizations loc) {
     for (var prod in disponibles) {
       final int cantidad = (prod['cantidad'] as num).toInt();
@@ -93,11 +87,7 @@ class _historial_screen_state extends State<historial_screen> {
     );
   }
 
-  /// coordina la accion principal del boton repetir analizando la respuesta del backend
-  ///
-  /// args:
-  ///   pedido_id (int): el numero de ticket original a clonar
-  ///   loc (AppLocalizations): diccionario de idiomas activo
+  // avisa al backend de que queremos clonar un pedido
   Future<void> _procesar_repeticion(int pedido_id, AppLocalizations loc) async {
     setState(() => _loading_repetir = true);
     try {
@@ -114,7 +104,7 @@ class _historial_screen_state extends State<historial_screen> {
       if (!mounted) return;
 
       if (disponibles.isEmpty) {
-        // caso c: no hay nada disponible
+        // nos rebotaron todo
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -126,7 +116,7 @@ class _historial_screen_state extends State<historial_screen> {
           ),
         );
       } else if (no_disponibles.isNotEmpty) {
-        // caso b: faltan cosas
+        // nos rebotaron cosas sueltas
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -153,7 +143,7 @@ class _historial_screen_state extends State<historial_screen> {
           ),
         );
       } else {
-        // caso a: todo limpio y con stock
+        // luz verde a todo
         _anadir_al_carrito(disponibles, loc);
       }
     } catch (e) {
@@ -177,6 +167,14 @@ class _historial_screen_state extends State<historial_screen> {
       appBar: AppBar(
         title: Text(loc.hist_title),
         actions: [
+          // boton super claro para recargar sin tener que arrastrar
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Recargar pedidos',
+            onPressed: () {
+              _cargar_historial();
+            },
+          ),
           IconButton(
             icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
             onPressed: () => locale_prov.toggle_locale(),
@@ -185,156 +183,178 @@ class _historial_screen_state extends State<historial_screen> {
       ),
       body: Stack(
         children: [
-          FutureBuilder<List<historial_pedido>>(
-            future: _pedidos_future,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Center(child: Text(loc.hist_empty));
-              }
+          // lo dejamos tb por si la gente ya esta acostumbrada a tirar pa abajo
+          RefreshIndicator(
+            onRefresh: () async {
+              _cargar_historial();
+              await _pedidos_future;
+            },
+            child: FutureBuilder<List<historial_pedido>>(
+              future: _pedidos_future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.7,
+                        child: Center(child: Text('error: ${snapshot.error}', style: const TextStyle(color: Colors.red))),
+                      )
+                    ]
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.7,
+                        child: Center(child: Text(loc.hist_empty)),
+                      )
+                    ]
+                  );
+                }
 
-              return ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, index) {
-                  final item = snapshot.data![index];
-                  final expandido = _expandidos.contains(item.pedido_id);
-                  final cancelado = item.estado == 'cancelado';
+                return ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(12),
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    final item = snapshot.data![index];
+                    final expandido = _expandidos.contains(item.pedido_id);
+                    final cancelado = item.estado == 'cancelado';
+                    
+                    // el front busca el campo en el objeto item
+                    final bool tieneNotas = item.cancel_reason != null && item.cancel_reason!.isNotEmpty;
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    // borde rojo sutil para pedidos cancelados
-                    shape: cancelado
-                      ? RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: Colors.red, width: 1.5),
-                        )
-                      : null,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // cabecera del pedido — pulsar para expandir el desglose
-                          InkWell(
-                            onTap: () => _toggle_expansion(item.pedido_id),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('${loc.ord_det_order}${item.pedido_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Row(
-                                  children: [
-                                    Chip(
-                                      label: Text(item.estado, style: const TextStyle(fontSize: 12, color: Colors.white)),
-                                      backgroundColor: cancelado ? Colors.red : Colors.grey.shade600,
-                                    ),
-                                    Icon(expandido ? Icons.expand_less : Icons.expand_more),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          // fecha del pedido
-                          Text(
-                            '${item.fecha.day.toString().padLeft(2,'0')}/${item.fecha.month.toString().padLeft(2,'0')}/${item.fecha.year}  ${item.fecha.hour.toString().padLeft(2,'0')}:${item.fecha.minute.toString().padLeft(2,'0')}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                          ),
-                          // nota de cancelacion — visible siempre si el pedido fue cancelado con motivo
-                          if (cancelado && item.cancel_reason != null && item.cancel_reason!.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.red.shade200),
-                              ),
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      // lo pitamos de rojo si murio el pedido
+                      shape: cancelado
+                        ? RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Colors.red, width: 1.5),
+                          )
+                        : null,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: () => _toggle_expansion(item.pedido_id),
                               child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text('Motivo de cancelación', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red)),
-                                        Text(item.cancel_reason!, style: const TextStyle(fontSize: 13)),
-                                      ],
-                                    ),
+                                  Text('${loc.ord_det_order}${item.pedido_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Row(
+                                    children: [
+                                      Chip(
+                                        label: Text(item.estado, style: const TextStyle(fontSize: 12, color: Colors.white)),
+                                        backgroundColor: cancelado ? Colors.red : Colors.grey.shade600,
+                                      ),
+                                      Icon(expandido ? Icons.expand_less : Icons.expand_more),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                          const SizedBox(height: 8),
-
-                          // desglose de productos — visible solo cuando la tarjeta esta expandida
-                          if (expandido) ...[
-                            const Divider(),
-                            ...item.productos.map((p) => InkWell(
-                              // al pulsar en un producto navega a su detalle con ingredientes
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => producto_detalle_screen(item: _producto_desde_historial(p))),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${item.fecha.day.toString().padLeft(2,'0')}/${item.fecha.month.toString().padLeft(2,'0')}/${item.fecha.year}  ${item.fecha.hour.toString().padLeft(2,'0')}:${item.fecha.minute.toString().padLeft(2,'0')}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                            
+                            // esto funciona siempre y cuando order_model.dart haya leido el json bien
+                            if (tieneNotas) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: cancelado ? Colors.red.shade50 : Colors.orange.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: cancelado ? Colors.red.shade200 : Colors.orange.shade200),
+                                ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    Icon(cancelado ? Icons.cancel_outlined : Icons.info_outline, color: cancelado ? Colors.red : Colors.orange, size: 16),
+                                    const SizedBox(width: 8),
                                     Expanded(
-                                      child: Row(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.restaurant, size: 14, color: Colors.grey),
-                                          const SizedBox(width: 6),
-                                          Expanded(child: Text('${p.cantidad}x ${p.nombre}', style: const TextStyle(fontSize: 14))),
-                                          // indicacion de que se puede pulsar para ver ingredientes
-                                          const Icon(Icons.info_outline, size: 14, color: Colors.blue),
+                                          Text('Nota del pedido', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: cancelado ? Colors.red : Colors.orange.shade800)),
+                                          Text(item.cancel_reason!, style: const TextStyle(fontSize: 13)),
                                         ],
                                       ),
                                     ),
-                                    Text('€${(p.precio_unitario * p.cantidad).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
-                            )).toList(),
-                            const Divider(),
-                          ] else ...[
-                            // resumen colapsado
-                            Text('${item.productos.length} ${loc.ord_det_products_title}', style: const TextStyle(color: Colors.grey)),
-                            const Divider(),
-                          ],
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('${loc.ord_det_total}${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              // no mostramos el boton repetir si el pedido fue cancelado
-                              if (!cancelado)
-                                ElevatedButton.icon(
-                                  onPressed: () => _procesar_repeticion(item.pedido_id, loc),
-                                  icon: const Icon(Icons.replay),
-                                  label: Text(loc.hist_btn_repeat),
-                                ),
                             ],
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+
+                            // lista de productos
+                            if (expandido) ...[
+                              const Divider(),
+                              ...item.productos.map((p) => InkWell(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => producto_detalle_screen(item: _producto_desde_historial(p))),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 6),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.restaurant, size: 14, color: Colors.grey),
+                                            const SizedBox(width: 6),
+                                            Expanded(child: Text('${p.cantidad}x ${p.nombre}', style: const TextStyle(fontSize: 14))),
+                                            const Icon(Icons.info_outline, size: 14, color: Colors.blue),
+                                          ],
+                                        ),
+                                      ),
+                                      Text('€${(p.precio_unitario * p.cantidad).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              )).toList(),
+                              const Divider(),
+                            ] else ...[
+                              Text('${item.productos.length} ${loc.ord_det_products_title}', style: const TextStyle(color: Colors.grey)),
+                              const Divider(),
+                            ],
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${loc.ord_det_total}${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                if (!cancelado)
+                                  ElevatedButton.icon(
+                                    onPressed: () => _procesar_repeticion(item.pedido_id, loc),
+                                    icon: const Icon(Icons.replay),
+                                    label: Text(loc.hist_btn_repeat),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
+                    );
+                  },
+                );
+              },
+            ),
           ),
 
-          // capa de carga semitransparente que bloquea la pantalla mientras procesa la repeticion
+          // pantallita negra de carga
           if (_loading_repetir)
             Container(
               color: Colors.black54,

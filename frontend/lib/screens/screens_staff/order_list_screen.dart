@@ -8,6 +8,7 @@ import '../../models/order_staff_model.dart';
 import '../../providers/auth_provider.dart';
 import 'order_detail_screen.dart';
 
+// pantalla donde el personal ve los pedidos en tiempo real
 class order_list_screen extends StatefulWidget {
   const order_list_screen({super.key});
   @override
@@ -33,7 +34,7 @@ class _order_list_screen_state extends State<order_list_screen> {
   void initState() {
     super.initState();
     _load_orders();
-    // refrezco en tiempo real
+    // refrezco en tiempo real cada 30 segundos
     refresh_timer = Timer.periodic(const Duration(seconds: 30), (_) => _load_orders());
   }
 
@@ -44,6 +45,7 @@ class _order_list_screen_state extends State<order_list_screen> {
     super.dispose();
   }
 
+  // baja los pedidos desde el backend aplicando los filtros de busqueda y estado
   Future<void> _load_orders() async {
     setState(() { loading = true; error = null; });
     try {
@@ -137,7 +139,16 @@ class _order_list_screen_state extends State<order_list_screen> {
                         final item = orders[index];
                         final color = Color(order_staff_item.getStatusColor(item.order_status));
                         return Card(
-                          color: item.is_new ? Colors.yellow[50] : null,
+                          // usamos opacidad para que el fondo se adapte al modo oscuro sin deslumbrar
+                          color: item.is_new ? Colors.orange.withOpacity(0.15) : null,
+                          elevation: item.is_new ? 0 : 1,
+                          // le ponemos un borde sutil para enmarcarlo bien
+                          shape: item.is_new 
+                            ? RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.orange.withOpacity(0.3)),
+                              )
+                            : null,
                           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           child: ListTile(
                             leading: CircleAvatar(

@@ -1,18 +1,20 @@
-import '../../models/order_model.dart';
+import '../../models/order_model.dart'; // necesario para leer la lista de order_detail
+
 // elemento de lista para la vista de pedidos del personal
 class order_staff_item {
   final int order_id;
   final String user_name;
   final String order_status;
   final double order_total;
-  final bool is_new;
+  final bool is_new; // recuperado: marca si el pedido acaba de entrar
   final String order_notes;
   final int items_count;
   final DateTime order_date_time;
   final DateTime? order_pickup_time;
-  // nota de cancelacion escrita por el dependiente — visible para el cliente
+  // nota de cancelacion escrita por el dependiente
   final String? cancel_reason;
-  final List<order_detail> details;
+  // recuperado: la lista de productos dentro del pedido
+  final List<order_detail> details; 
 
   order_staff_item({
     required this.order_id,
@@ -39,19 +41,23 @@ class order_staff_item {
       items_count:       json['items_count'] ?? 0,
       order_date_time:   DateTime.parse(json['order_date_time']),
       order_pickup_time: json['order_pickup_time'] != null ? DateTime.parse(json['order_pickup_time']) : null,
-      cancel_reason:     json['cancel_reason'],
-      details: (json['details'] as List?)?.map((d) => order_detail.from_json(d)).toList() ?? [],
+      
+      // leemos el motivo de cancelacion por si la hay
+      cancel_reason:     json['cancel_reason'] ?? json['motivo_cancelacion'] ?? json['nota'],
+      
+      // parseamos la lista de detalles del pedido
+      details:           (json['details'] as List?)?.map((d) => order_detail.from_json(d)).toList() ?? [],
     );
   }
 
   // devuelve un codigo de color especifico segun el estado del pedido
-  static getStatusColor(String status) {
+  static int getStatusColor(String status) {
     switch (status) {
-      case 'pendiente':      return 0xFFFF9800;
-      case 'en_preparacion': return 0xFF2196F3;
-      case 'listo':          return 0xFF4CAF50;
-      case 'cancelado':      return 0xFFF44336;
-      default:               return 0xFF9E9E9E;
+      case 'pendiente':      return 0xFFFFC107; // amarillo
+      case 'en_preparacion': return 0xFF2196F3; // azul
+      case 'listo':          return 0xFF4CAF50; // verde
+      case 'cancelado':      return 0xFFF44336; // rojo
+      default:               return 0xFF9E9E9E; // gris
     }
   }
 }

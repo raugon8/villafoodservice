@@ -6,9 +6,10 @@ import '../../providers/locale_provider.dart';
 import '../../services/dashboard_service.dart';
 import '../../models/dashboard_model.dart';
 import '../../providers/auth_provider.dart';
+import 'user_management_screen.dart'; // importamos la pantalla correcta
 
-/// pantalla del panel de control principal para los administradores
-/// muestra estadisticas generales y graficas temporales de rendimiento
+// pantalla del panel de control principal para los administradores
+// muestra estadisticas generales y graficas temporales de rendimiento
 class dashboard_screen extends StatefulWidget {
   const dashboard_screen({super.key});
 
@@ -32,7 +33,7 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     _cargar();
   }
 
-  /// solicita los datos del dashboard al backend usando los filtros actuales
+  // solicita los datos del dashboard al backend usando los filtros actuales
   Future<void> _cargar() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -51,7 +52,7 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     }
   }
 
-  /// abre el selector de fechas nativo para elegir un rango personalizado
+  // abre el selector de fechas nativo para elegir un rango personalizado
   Future<void> _seleccionar_fechas() async {
     final loc = AppLocalizations.of(context)!;
     final inicio = await showDatePicker(
@@ -88,8 +89,9 @@ class _dashboard_screen_state extends State<dashboard_screen> {
             icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
             onPressed: () => locale_prov.toggle_locale(),
           ),
+          // arreglamos la navegacion al panel de usuarios
           IconButton(icon: const Icon(Icons.people), tooltip: loc.dash_tooltip_users,
-            onPressed: () => Navigator.pushNamed(context, '/admin/users')),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const user_management_screen()))),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
         ],
       ),
@@ -108,10 +110,9 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  /// construye la barra superior con el selector de periodo
-  ///
-  /// args:
-  ///   loc (AppLocalizations): diccionario de traduccion activo
+  // construye la barra superior con el selector de periodo
+  //
+  // :param loc: diccionario de traduccion activo
   Widget _build_filtros(AppLocalizations loc) {
     final Map<String, String> periodos = {
       'todo': loc.dash_period_all,
@@ -159,11 +160,10 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  /// construye el cuerpo principal con las tarjetas numericas y las graficas temporales
-  ///
-  /// args:
-  ///   loc (AppLocalizations): diccionario de traduccion activo
-  ///   is_spanish (bool): bandera para usar traducciones manuales en graficas
+  // construye el cuerpo principal con las tarjetas numericas y las graficas temporales
+  //
+  // :param loc: diccionario de traduccion activo
+  // :param is_spanish: bandera para usar traducciones manuales en graficas
   Widget _build_contenido(AppLocalizations loc, bool is_spanish) {
     final d = _data!;
     return SingleChildScrollView(
@@ -271,11 +271,10 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  /// construye una etiqueta de seccion con un icono
-  ///
-  /// args:
-  ///   titulo (String): el texto principal de la seccion
-  ///   icono (IconData): el icono decorativo
+  // construye una etiqueta de seccion con un icono
+  //
+  // :param titulo: el texto principal de la seccion
+  // :param icono: el icono decorativo
   Widget _seccion(String titulo, IconData icono) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -289,13 +288,12 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  /// construye una tarjeta para mostrar un valor numerico simple
-  ///
-  /// args:
-  ///   titulo (String): la etiqueta pequeña inferior
-  ///   valor (String): el numero grande en el centro
-  ///   color (Color): el color del texto principal
-  ///   icon (IconData?): un icono opcional para acompañar el valor
+  // construye una tarjeta para mostrar un valor numerico simple
+  //
+  // :param titulo: la etiqueta pequeña inferior
+  // :param valor: el numero grande en el centro
+  // :param color: el color del texto principal
+  // :param icon: un icono opcional para acompañar el valor
   Widget _card(String titulo, String valor, Color color, {IconData? icon}) {
     return Card(
       child: Padding(
@@ -312,12 +310,11 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  /// construye una tarjeta especial para el producto mas vendido con icono de estrella
-  ///
-  /// args:
-  ///   nombre (String): el nombre del producto
-  ///   cantidad (int): unidades vendidas
-  ///   loc (AppLocalizations): diccionario de traducciones
+  // construye una tarjeta especial para el producto mas vendido con icono de estrella
+  //
+  // :param nombre: el nombre del producto
+  // :param cantidad: unidades vendidas
+  // :param loc: diccionario de traducciones
   Widget _card_mas_vendido(String nombre, int cantidad, AppLocalizations loc) {
     return Card(
       child: Padding(
@@ -335,14 +332,13 @@ class _dashboard_screen_state extends State<dashboard_screen> {
     );
   }
 
-  /// construye una grafica de lineas usando fl_chart adaptada para series temporales
-  ///
-  /// args:
-  ///   titulo (String): texto superior descriptivo
-  ///   datos (List<FlSpot>): lista de puntos cartesianos a dibujar
-  ///   etiquetas (List<String>): fechas en formato string para el eje x
-  ///   color (Color): color principal de la linea y los puntos
-  ///   es_moneda (bool): si es true, añade el simbolo del euro en el tooltip
+  // construye una grafica de lineas usando fl_chart adaptada para series temporales
+  //
+  // :param titulo: texto superior descriptivo
+  // :param datos: lista de puntos cartesianos a dibujar
+  // :param etiquetas: fechas en formato string para el eje x
+  // :param color: color principal de la linea y los puntos
+  // :param es_moneda: si es true, añade el simbolo del euro en el tooltip
   Widget _build_grafica_lineal({
     required String titulo,
     required List<FlSpot> datos,

@@ -16,14 +16,11 @@ import '../../screens/admin/dashboard_screen.dart';
 import '../../screens/admin/category_management_screen.dart';
 import '../../screens/admin/user_management_screen.dart';
 
-/// pantalla principal que filtra opciones segun el rol del usuario
+// la centralita de la app que reparte el bacalao segun tu rol
 class home_screen extends StatelessWidget {
   const home_screen({super.key});
 
-  /// formatea el nombre del rol para mostrarlo en la interfaz
-  ///
-  /// args:
-  ///   rol (String?): el rol actual del usuario en formato de base de datos
+  // pillamos el texto bonito para el rol
   String _rol_display(String? rol, AppLocalizations loc) {
     switch (rol) {
       case 'admin':       return loc.home_rol_admin;
@@ -40,16 +37,16 @@ class home_screen extends StatelessWidget {
     final theme_prov = Provider.of<theme_provider>(context);
     final loc = AppLocalizations.of(context)!;
     final String? rol = auth.current_role;
-    // responsive: 4 columnas en web/tablet, 2 en movil
+    
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            // logo de la app en el appbar
+            // tu foto personalizada en la esquina
             Image.asset(
-              'assets/logo.png',
+              'assets/Logo_VF.png', // actualizado al nombre correcto
               height: 36,
               errorBuilder: (c, e, s) => const Icon(Icons.restaurant, size: 36),
             ),
@@ -67,7 +64,6 @@ class home_screen extends StatelessWidget {
           ],
         ),
         actions: [
-          // boton modo oscuro/claro
           IconButton(
             icon: Icon(theme_prov.is_dark_mode ? Icons.light_mode : Icons.dark_mode),
             tooltip: 'Cambiar tema',
@@ -99,7 +95,6 @@ class home_screen extends StatelessWidget {
       ),
       body: Center(
         child: ConstrainedBox(
-          // tope de 1200px para que no se estire demasiado en pantallas grandes
           constraints: const BoxConstraints(maxWidth: 1200),
           child: GridView.count(
             crossAxisCount: isDesktop ? 4 : 2,
@@ -120,14 +115,12 @@ class home_screen extends StatelessWidget {
               if (rol == 'admin' || rol == 'almacen' || rol == 'dependiente')
                 _crear_boton(context, Icons.restaurant_menu, loc.home_btn_productos, loc.home_desc_productos, const productos_list_screen()),
 
-              // el cliente y el admin ven estos botones; dependiente y almacen no pueden hacer pedidos
               if (rol == 'cliente' || rol == 'admin')
                 _crear_boton(context, Icons.search, loc.home_btn_catalogo, loc.home_desc_catalogo, const catalog_screen()),
 
               if (rol == 'cliente' || rol == 'admin')
                 _crear_boton(context, Icons.shopping_cart, loc.home_btn_carrito, loc.home_desc_carrito, const cart_screen()),
 
-              // boton de historial, solo visible para clientes y admin
               if (rol == 'cliente' || rol == 'admin')
                 _crear_boton(context, Icons.history, loc.home_btn_pedidos, loc.home_desc_pedidos, const historial_screen()),
 
@@ -140,14 +133,7 @@ class home_screen extends StatelessWidget {
     );
   }
 
-  /// construye botones con soporte para lectores de pantalla
-  ///
-  /// args:
-  ///   context (BuildContext): el arbol de widgets actual
-  ///   icono (IconData): icono visual del boton
-  ///   texto (String): titulo corto del boton
-  ///   label_accesibilidad (String): descripcion larga para el lector de pantalla
-  ///   pantalla (Widget): pantalla destino a la que navega
+  // dibuja el boton gigante del grid
   Widget _crear_boton(BuildContext context, IconData icono, String texto, String label_accesibilidad, Widget pantalla) {
     return Semantics(
       label: label_accesibilidad,

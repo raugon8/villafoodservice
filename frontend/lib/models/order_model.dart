@@ -10,6 +10,7 @@ class cart_item {
     'quantity': quantity
   };
 }
+
 // pedido completo con todos sus detalles y estado
 class order {
   final int order_id;
@@ -28,6 +29,7 @@ class order {
     );
   }
 }
+
 // linea de detalle de un pedido especifico
 class order_detail {
   final String product_name;
@@ -42,6 +44,7 @@ class order_detail {
     );
   }
 }
+
 // producto dentro del historial de un pedido anterior
 class historial_producto {
   final int producto_id;
@@ -58,6 +61,7 @@ class historial_producto {
     );
   }
 }
+
 // pedido del historial del cliente con formato del endpoint /pedidos/historial
 class historial_pedido {
   final int pedido_id;
@@ -65,16 +69,22 @@ class historial_pedido {
   final String estado;
   final double total;
   final List<historial_producto> productos;
-  // nota de cancelacion escrita por el dependiente — null si no fue cancelado o no hay nota
+  
+  // nota del dependiente. puede ser nula si no escribieron nada
   final String? cancel_reason;
+  
   historial_pedido({required this.pedido_id, required this.fecha, required this.estado, required this.total, required this.productos, this.cancel_reason});
+  
   factory historial_pedido.from_json(Map<String, dynamic> json) {
     return historial_pedido(
       pedido_id:     json['pedido_id'],
       fecha:         DateTime.parse(json['fecha']),
       estado:        json['estado'],
       total:         double.parse(json['total'].toString()),
-      cancel_reason: json['cancel_reason'],
+      
+      // probamos varios nombres por si el backend de python lo manda diferente
+      cancel_reason: json['cancel_reason'] ?? json['motivo_cancelacion'] ?? json['motivo'] ?? json['nota'],
+      
       productos:     (json['productos'] as List?)?.map((p) => historial_producto.from_json(p)).toList() ?? [],
     );
   }

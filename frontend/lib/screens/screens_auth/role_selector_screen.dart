@@ -5,17 +5,18 @@ import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../screens_home/home_screen.dart';
 
+// pantalla para que los usuarios con varios roles elijan con cual entrar
 class role_selector_screen extends StatelessWidget {
   const role_selector_screen({super.key});
 
-  // Funci├│n para devolver un icono espec├şfico seg├║n el rol
+  // funcion para devolver un icono especifico segun el rol
   IconData _getIconForRole(String role) {
     switch (role.toLowerCase()) {
-      case 'admin': return Icons.admin_panel_settings;
-      case 'cliente': return Icons.shopping_bag;
+      case 'admin':       return Icons.admin_panel_settings;
+      case 'cliente':     return Icons.shopping_bag;
       case 'dependiente': return Icons.storefront;
-      case 'almacen': return Icons.inventory_2;
-      default: return Icons.person_pin;
+      case 'almacen':     return Icons.inventory_2;
+      default:            return Icons.person_pin;
     }
   }
 
@@ -31,13 +32,14 @@ class role_selector_screen extends StatelessWidget {
         title: Text(loc.role_selector_title),
         actions: [
           IconButton(
-            icon: Text(is_spanish ? '­čç¬­čçŞ' : '­čçČ­čçž', style: const TextStyle(fontSize: 24)),
+            // solucionado: restauramos los emojis nativos quitando las letras corruptas
+            icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
             onPressed: () => locale_prov.toggle_locale(),
           ),
         ],
       ),
       body: Center(
-        // ConstrainedBox hace que en Web no se estire de lado a lado
+        // constrainedbox hace que en web no se estire de lado a lado
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: ListView.builder(

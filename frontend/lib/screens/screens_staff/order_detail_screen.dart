@@ -7,8 +7,8 @@ import '../../services/order_staff_service.dart';
 import '../../models/order_staff_model.dart';
 import '../../providers/auth_provider.dart';
 
-/// pantalla que muestra los detalles de un pedido al personal
-/// permite cambiar el estado del pedido (ej. de pendiente a listo)
+// pantalla que muestra los detalles de un pedido al personal
+// permite cambiar el estado del pedido (ej. de pendiente a listo)
 class order_detail_screen extends StatefulWidget {
   final int order_id;
   final String service;
@@ -35,7 +35,7 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     _load_detail();
   }
 
-  /// solicita al backend los datos completos del pedido seleccionado
+  // solicita al backend los datos completos del pedido seleccionado
   Future<void> _load_detail() async {
     setState(() { loading = true; error = null; });
     try {
@@ -52,11 +52,11 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     }
   }
 
-  /// muestra un dialogo de confirmacion y actualiza el estado del pedido
-  ///
-  /// args:
-  ///   new_status (String): el nuevo estado que se le asignara al pedido
-  ///   loc (AppLocalizations): diccionario de traduccion activo
+  // muestra un dialogo de confirmacion y actualiza el estado del pedido
+  //
+  // args:
+  //   new_status: el nuevo estado que se le asignara al pedido
+  //   loc: diccionario de traduccion activo
   Future<void> _change_status(String new_status, AppLocalizations loc) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -88,8 +88,8 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     }
   }
 
-  /// muestra un dialogo para escribir la nota de cancelacion (opcional) y cancela el pedido
-  /// restaura el stock de ingredientes en el backend
+  // muestra un dialogo para escribir la nota de cancelacion (opcional) y cancela el pedido
+  // restaura el stock de ingredientes en el backend
   Future<void> _cancelar_pedido(AppLocalizations loc) async {
     final nota_controller = TextEditingController();
 
@@ -152,10 +152,10 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     }
   }
 
-  /// dibuja el boton de accion dependiendo del estado actual del pedido
-  ///
-  /// args:
-  ///   loc (AppLocalizations): diccionario de traduccion activo
+  // dibuja el boton de accion dependiendo del estado actual del pedido
+  //
+  // args:
+  //   loc: diccionario de traduccion activo
   Widget _status_button(AppLocalizations loc) {
     if (order == null) return const SizedBox();
     switch (order!.order_status) {
@@ -261,8 +261,14 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                     ),
                     if (order!.order_notes.isNotEmpty) ...[
                       const SizedBox(height: 8),
+                      // arreglamos el color ciego usando opacidad en vez de shade
                       Card(
-                        color: Colors.amber[50],
+                        color: Colors.orange.withOpacity(0.15),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.orange.withOpacity(0.3)),
+                        ),
                         child: ListTile(
                           leading: const Icon(Icons.info_outline, color: Colors.orange),
                           title: Text(loc.ord_det_notes_title),
@@ -273,11 +279,17 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                     // muestra la nota de cancelacion si el pedido fue cancelado con motivo
                     if (order!.order_status == 'cancelado' && order!.cancel_reason != null && order!.cancel_reason!.isNotEmpty) ...[
                       const SizedBox(height: 8),
+                      // arreglamos el color ciego usando opacidad
                       Card(
-                        color: Colors.red[50],
+                        color: Colors.red.withOpacity(0.15),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.red.withOpacity(0.3)),
+                        ),
                         child: ListTile(
                           leading: const Icon(Icons.cancel_outlined, color: Colors.red),
-                          title: const Text('Motivo de cancelación'),
+                          title: const Text('Motivo de cancelación', style: TextStyle(color: Colors.red)),
                           subtitle: Text(order!.cancel_reason!),
                         ),
                       ),

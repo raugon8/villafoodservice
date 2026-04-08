@@ -26,7 +26,8 @@ class _catalog_screen_state extends State<catalog_screen> {
 
   List<producto> _productos = [];
   List<category_model> _categorias = [];
-  // IDs de tipos de comida seleccionados para filtro multi-seleccion
+  
+  // guardamos los ids de las categorias seleccionadas para filtrar
   Set<int> _category_ids_seleccionados = {};
   bool _loading = false;
   String? _error;
@@ -42,16 +43,17 @@ class _catalog_screen_state extends State<catalog_screen> {
     _buscar();
   }
 
-  /// carga los tipos de comida del backend para mostrarlos como chips de filtro
+  // pedimos las categorias al backend para armar los botones
   Future<void> _cargar_categorias() async {
     try {
       final cats = await _category_service.list_categories(active_only: true);
       setState(() => _categorias = cats);
     } catch (_) {
-      // si falla la carga de categorias, el filtro de servicio sigue funcionando
+      // si falla, no pasa nada, el filtro principal sigue vivo
     }
   }
 
+  // buscamos los productos aplicando todo lo que el usuario ha marcado
   Future<void> _buscar() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -61,7 +63,6 @@ class _catalog_screen_state extends State<catalog_screen> {
         current_role: auth.current_role ?? 'cliente',
         query: _search_controller.text.isEmpty ? null : _search_controller.text,
         service: _categoria_seleccionada == 'Todas' ? null : _categoria_seleccionada,
-        // pasamos la lista de IDs seleccionados; si esta vacia no se aplica el filtro
         category_ids: _category_ids_seleccionados.isEmpty ? null : _category_ids_seleccionados.toList(),
         available_only: false,
         sort_by: _sort_by,
@@ -72,6 +73,7 @@ class _catalog_screen_state extends State<catalog_screen> {
     }
   }
 
+  // esperamos un poquito a que deje de escribir para no saturar el servidor
   void _on_search_changed(String value) {
     _last_search = DateTime.now();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -81,7 +83,7 @@ class _catalog_screen_state extends State<catalog_screen> {
     });
   }
 
-  /// alterna la seleccion de un tipo de comida — si ya estaba seleccionado lo quita, si no lo añade
+  // marcamos o desmarcamos el chip de la categoria
   void _toggle_category(int category_id) {
     setState(() {
       if (_category_ids_seleccionados.contains(category_id)) {
@@ -104,7 +106,8 @@ class _catalog_screen_state extends State<catalog_screen> {
     final loc = AppLocalizations.of(context)!;
     final locale_prov = Provider.of<locale_provider>(context);
     final is_spanish = locale_prov.locale.languageCode == 'es';
-    // responsive: grid en web, lista en movil
+    
+    // miramos si la pantalla es ancha para cambiar la vista
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     final Map<String, String> _sort_options = {
@@ -120,7 +123,6 @@ class _catalog_screen_state extends State<catalog_screen> {
       appBar: AppBar(
         title: Text(loc.catalogo_titulo),
         actions: [
-          // acceso directo al carrito desde el catalogo
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             tooltip: loc.home_btn_carrito,
@@ -140,73 +142,75 @@ class _catalog_screen_state extends State<catalog_screen> {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Semantics(
-              label: 'campo de busqueda de productos',
-              textField: true,
-              child: TextField(
-                controller: _search_controller,
-                onChanged: _on_search_changed,
-                decoration: InputDecoration(
-                  hintText: loc.catalogo_buscar,
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _search_controller.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
-                        _search_controller.clear();
-                        _buscar();
-                      })
-                    : null,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      // aqui esta el truco para que los filtros suban al hacer scroll
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Semantics(
+                label: 'campo de busqueda de productos',
+                textField: true,
+                child: TextField(
+                  controller: _search_controller,
+                  onChanged: _on_search_changed,
+                  decoration: InputDecoration(
+                    hintText: loc.catalogo_buscar,
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _search_controller.text.isNotEmpty
+                      ? IconButton(icon: const Icon(Icons.clear), onPressed: () {
+                          _search_controller.clear();
+                          _buscar();
+                        })
+                      : null,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
               ),
             ),
           ),
-          // filtro por servicio (Cafetería, Restaurante, Repostería) — Wrap para mejor adaptacion web
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: -8,
-              children: ['Todas', 'Cafetería', 'Restaurante', 'Repostería'].map((cat) {
-                final cat_display = cat == 'Todas' ? loc.catalogo_todas : cat;
-                return FilterChip(
-                  label: Text(cat_display),
-                  selected: _categoria_seleccionada == cat,
-                  onSelected: (_) { setState(() => _categoria_seleccionada = cat); _buscar(); },
-                );
-              }).toList(),
-            ),
-          ),
-          // filtro por tipo de comida (multi-seleccion) — se carga dinamicamente del backend
-          if (_categorias.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Wrap(
                 spacing: 8,
-                runSpacing: -8,
-                children: _categorias.map((cat) {
-                  final seleccionada = _category_ids_seleccionados.contains(cat.category_id);
+                runSpacing: 8, // arreglado: espacio positivo para que no se aplasten
+                children: ['Todas', 'Cafetería', 'Restaurante', 'Repostería'].map((cat) {
+                  final cat_display = cat == 'Todas' ? loc.catalogo_todas : cat;
                   return FilterChip(
-                    label: Text(cat.category_name),
-                    selected: seleccionada,
-                    // se pueden seleccionar varios a la vez (OR entre tipos)
-                    onSelected: (_) => _toggle_category(cat.category_id),
+                    label: Text(cat_display),
+                    selected: _categoria_seleccionada == cat,
+                    onSelected: (_) { setState(() => _categoria_seleccionada = cat); _buscar(); },
                   );
                 }).toList(),
               ),
             ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _loading
-              ? const Center(child: CircularProgressIndicator())
+          ),
+          if (_categorias.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8, // arreglado: espacio positivo para las categorias dinamicas
+                  children: _categorias.map((cat) {
+                    final seleccionada = _category_ids_seleccionados.contains(cat.category_id);
+                    return FilterChip(
+                      label: Text(cat.category_name),
+                      selected: seleccionada,
+                      onSelected: (_) => _toggle_category(cat.category_id),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          SliverPadding(
+            padding: const EdgeInsets.all(12),
+            sliver: _loading
+              ? const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
               : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                ? SliverToBoxAdapter(
+                    child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -224,24 +228,25 @@ class _catalog_screen_state extends State<catalog_screen> {
                     ),
                   )
                 : _productos.isEmpty
-                  ? Center(child: Text(loc.catalogo_sin_resultados, style: const TextStyle(color: Colors.grey)))
-                  // responsive: grid en desktop, lista en movil
+                  ? SliverToBoxAdapter(child: Center(child: Text(loc.catalogo_sin_resultados, style: const TextStyle(color: Colors.grey))))
                   : isDesktop
-                    ? GridView.builder(
-                        padding: const EdgeInsets.all(12),
+                    ? SliverGrid(
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 400,
                           childAspectRatio: 2.5,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
-                        itemCount: _productos.length,
-                        itemBuilder: (context, index) => _build_producto_card(_productos[index], loc),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _build_producto_card(_productos[index], loc),
+                          childCount: _productos.length,
+                        ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _productos.length,
-                        itemBuilder: (context, index) => _build_producto_card(_productos[index], loc),
+                    : SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _build_producto_card(_productos[index], loc),
+                          childCount: _productos.length,
+                        ),
                       ),
           ),
         ],
@@ -249,12 +254,12 @@ class _catalog_screen_state extends State<catalog_screen> {
     );
   }
 
+  // armamos la tarjetita de cada producto
   Widget _build_producto_card(producto p, AppLocalizations loc) {
     final bool tiene_alergenos = p.alergenos.isNotEmpty;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
-      // imagen a la izquierda y contenido a la derecha para aprovechar el espacio en web
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -342,6 +347,7 @@ class _catalog_screen_state extends State<catalog_screen> {
     );
   }
 
+  // el hueco gris por si falla la imagen
   Widget _placeholder_imagen() {
     return Container(
       color: Colors.grey.shade200,

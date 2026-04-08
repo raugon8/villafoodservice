@@ -9,7 +9,7 @@ import '../screens_home/home_screen.dart';
 import '../../widgets/text_scale_toggle.dart';
 import 'register_screen.dart';
 
-// pantalla de acceso al sistema con diseño centrado y accesible
+// pantallita inicial para acceder al sistema
 class login_screen extends StatefulWidget {
   const login_screen({super.key});
   @override
@@ -22,7 +22,7 @@ class _login_screen_state extends State<login_screen> {
   final service_instancia = api_service();
   bool loading = false;
 
-  // gestiona la autenticacion y guarda los datos en el provider incluyendo el token JWT
+  // procesamos el login y si va bien guardamos tooodo en el provider
   void ejecutar_login() async {
     if (email_controller.text.isEmpty || pass_controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -34,7 +34,6 @@ class _login_screen_state extends State<login_screen> {
     setState(() { loading = true; });
 
     try {
-      // login devuelve el usuario, los roles y el token JWT en un solo mapa
       final resultado = await service_instancia.login(
         email_controller.text, pass_controller.text
       );
@@ -45,7 +44,7 @@ class _login_screen_state extends State<login_screen> {
 
       if (!mounted) return;
 
-      // guardamos el token en el provider para que todos los services lo usen en sus headers
+      // inyectamos el token en la sesion actual
       Provider.of<auth_provider>(context, listen: false).set_user(
         u.usuario_id,
         roles,
@@ -74,10 +73,11 @@ class _login_screen_state extends State<login_screen> {
     final locale_prov = Provider.of<locale_provider>(context);
     final theme_prov = Provider.of<theme_provider>(context);
     final is_spanish = locale_prov.locale.languageCode == 'es';
-    // responsive: layout split en web, centrado en movil
+    
+    // detectamos si estamos en un navegador de pc
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    // formulario reutilizado en ambos layouts
+    // guardamos el formulario en una variable para reusarlo
     final formCard = Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -86,11 +86,10 @@ class _login_screen_state extends State<login_screen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // en movil mostramos el logo arriba del formulario
-            // en web el logo aparece en el panel izquierdo
+            // en movil cargamos la foto arriba
             if (!isDesktop) ...[
               Image.asset(
-                'assets/logo.png',
+                'assets/Logo_VF.png', // nombre exacto del archivo
                 width: 100,
                 height: 100,
                 errorBuilder: (c, e, s) => Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
@@ -166,13 +165,11 @@ class _login_screen_state extends State<login_screen> {
         title: isDesktop ? const Text('VillaFood') : Text(localizations.login_titulo),
         centerTitle: !isDesktop,
         actions: [
-          // boton modo oscuro/claro
           IconButton(
             icon: Icon(theme_prov.is_dark_mode ? Icons.light_mode : Icons.dark_mode),
             tooltip: 'Modo Oscuro/Claro',
             onPressed: () => theme_prov.toggle_theme(),
           ),
-          // boton de idioma
           Semantics(
             label: is_spanish ? 'Cambiar idioma a inglés' : 'Change language to Spanish',
             button: true,
@@ -185,7 +182,7 @@ class _login_screen_state extends State<login_screen> {
         ],
       ),
       body: isDesktop
-        // layout web: panel izquierdo decorativo + formulario derecha
+        // si es web dividimos la pantalla a la mitad
         ? Row(
             children: [
               Expanded(
@@ -196,7 +193,7 @@ class _login_screen_state extends State<login_screen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/logo.png',
+                        'assets/Logo_VF.png', // nombre exacto del archivo
                         width: 160,
                         height: 160,
                         errorBuilder: (c, e, s) => Icon(Icons.restaurant_menu, size: 160, color: Theme.of(context).primaryColor),
@@ -228,7 +225,7 @@ class _login_screen_state extends State<login_screen> {
               ),
             ],
           )
-        // layout movil: formulario centrado con logo arriba
+        // en movil lo dejamos en el centro
         : Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
