@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../../services/api_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../screens_home/home_screen.dart';
@@ -25,7 +26,6 @@ class _login_screen_state extends State<login_screen> {
   void ejecutar_login() async {
     if (email_controller.text.isEmpty || pass_controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        // usamos el texto traducido para el error
         SnackBar(content: Text(AppLocalizations.of(context)!.error_campos))
       );
       return;
@@ -39,9 +39,9 @@ class _login_screen_state extends State<login_screen> {
         email_controller.text, pass_controller.text
       );
 
-      final u       = resultado['usuario'];
-      final roles   = resultado['roles'] as List<String>;
-      final token   = resultado['access_token'] as String;
+      final u     = resultado['usuario'];
+      final roles = resultado['roles'] as List<String>;
+      final token = resultado['access_token'] as String;
 
       if (!mounted) return;
 
@@ -70,116 +70,174 @@ class _login_screen_state extends State<login_screen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Obtenemos las traducciones de esta pantalla
     final localizations = AppLocalizations.of(context)!;
-    // 2. Obtenemos el proveedor de idiomas para el botón de la bandera
     final locale_prov = Provider.of<locale_provider>(context);
+    final theme_prov = Provider.of<theme_provider>(context);
     final is_spanish = locale_prov.locale.languageCode == 'es';
+    // responsive: layout split en web, centrado en movil
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    // formulario reutilizado en ambos layouts
+    final formCard = Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // en movil mostramos el logo arriba del formulario
+            // en web el logo aparece en el panel izquierdo
+            if (!isDesktop) ...[
+              Image.asset(
+                'assets/logo.png',
+                width: 100,
+                height: 100,
+                errorBuilder: (c, e, s) => Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
+              ),
+              const SizedBox(height: 24),
+            ],
+            if (isDesktop) ...[
+              Text(localizations.login_titulo, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+            ],
+
+            Semantics(
+              label: 'campo de correo electronico',
+              child: TextField(
+                controller: email_controller,
+                decoration: InputDecoration(
+                  labelText: localizations.login_email,
+                  prefixIcon: const Icon(Icons.email),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                )
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            Semantics(
+              label: 'campo de contraseña',
+              child: TextField(
+                controller: pass_controller,
+                decoration: InputDecoration(
+                  labelText: localizations.login_password,
+                  prefixIcon: const Icon(Icons.lock),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                obscureText: true
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            loading
+              ? const CircularProgressIndicator()
+              : Semantics(
+                  label: 'boton para iniciar sesion',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: ejecutar_login,
+                      child: Text(localizations.login_boton, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+                    ),
+                  ),
+                ),
+            const SizedBox(height: 16),
+
+            TextButton(
+              onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (c) => const register_screen())
+              ),
+              child: Text(localizations.login_registro, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+            ),
+          ],
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations.login_titulo), // titulo traducido
-        centerTitle: true,
+        title: isDesktop ? const Text('VillaFood') : Text(localizations.login_titulo),
+        centerTitle: !isDesktop,
         actions: [
-          // --- BOTÓN DE IDIOMA (TAREA 17) ---
+          // boton modo oscuro/claro
+          IconButton(
+            icon: Icon(theme_prov.is_dark_mode ? Icons.light_mode : Icons.dark_mode),
+            tooltip: 'Modo Oscuro/Claro',
+            onPressed: () => theme_prov.toggle_theme(),
+          ),
+          // boton de idioma
           Semantics(
             label: is_spanish ? 'Cambiar idioma a inglés' : 'Change language to Spanish',
             button: true,
             child: IconButton(
-              icon: Text(
-                is_spanish ? '🇪🇸' : '🇬🇧',
-                style: const TextStyle(fontSize: 24),
-              ),
-              onPressed: () {
-                locale_prov.toggle_locale();
-              },
+              icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)),
+              onPressed: () => locale_prov.toggle_locale(),
             ),
           ),
-          // ----------------------------------
           const text_scale_toggle()
         ],
       ),
-      // centra el contenido y permite scroll para el teclado
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // logo de la aplicacion
-                  Image.asset(
-                    'assets/logo.png',
-                    width: 100,
-                    height: 100,
-                    errorBuilder: (c, e, s) => Icon(Icons.restaurant, size: 64, color: Theme.of(context).primaryColor),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Semantics(
-                    label: 'campo de correo electronico',
-                    child: TextField(
-                      controller: email_controller,
-                      decoration: InputDecoration(
-                        labelText: localizations.login_email, // label traducido
-                        prefixIcon: const Icon(Icons.email),
-                        border: const OutlineInputBorder(),
-                      )
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Semantics(
-                    label: 'campo de contraseña',
-                    child: TextField(
-                      controller: pass_controller,
-                      decoration: InputDecoration(
-                        labelText: localizations.login_password, // label traducido
-                        prefixIcon: const Icon(Icons.lock),
-                        border: const OutlineInputBorder(),
+      body: isDesktop
+        // layout web: panel izquierdo decorativo + formulario derecha
+        ? Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Container(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/logo.png',
+                        width: 160,
+                        height: 160,
+                        errorBuilder: (c, e, s) => Icon(Icons.restaurant_menu, size: 160, color: Theme.of(context).primaryColor),
                       ),
-                      obscureText: true
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  loading
-                    ? const CircularProgressIndicator()
-                    : Semantics(
-                        label: 'boton para iniciar sesion',
-                        button: true,
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: ejecutar_login,
-                            child: Text(localizations.login_boton, style: const TextStyle(fontSize: 16)) // botón traducido
-                          ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'VillaFood Service',
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
-                  const SizedBox(height: 12),
-
-                  TextButton(
-                    onPressed: () => Navigator.push(
-                      context, MaterialPageRoute(builder: (c) => const register_screen())
-                    ),
-                    child: Text(localizations.login_registro, style: const TextStyle(color: Colors.grey, fontSize: 13)), // texto registro traducido
+                    ],
                   ),
-                ],
+                ),
+              ),
+              Expanded(
+                flex: 4,
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 450),
+                      child: formCard,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
+        // layout movil: formulario centrado con logo arriba
+        : Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: formCard,
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
