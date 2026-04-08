@@ -18,10 +18,10 @@ VALID_TRANSITIONS = {
     'cancelado':      []
 }
 
-# Transiciones de estado permitidas para el dependiente: pendiente → en_preparacion → listo.
+# Transiciones de estado permitidas para el dependiente: pendiente → en_preparacion → listo. El dependiente también puede cancelar.
 VALID_STAFF_TRANSITIONS = {
-    'pendiente':      ['en_preparacion'],
-    'en_preparacion': ['listo'],
+    'pendiente':      ['en_preparacion', 'cancelado'],
+    'en_preparacion': ['listo', 'cancelado'],
     'listo':          [],
 }
 
@@ -113,6 +113,8 @@ class OrderResponse(BaseModel):
     order_notes: Optional[str] = None
     order_service: Optional[str] = None
     order_pickup_time: Optional[datetime] = None
+    # Nota de cancelación escrita por el dependiente — visible para el cliente.
+    cancel_reason: Optional[str] = None
     details: List[OrderDetailResponse] = []
 
     class Config:
@@ -146,6 +148,8 @@ class OrderStaffResponse(BaseModel):
     order_notes: Optional[str] = None
     order_service: Optional[str] = None
     order_pickup_time: Optional[datetime] = None
+    # Nota de cancelación escrita por el dependiente — visible para el cliente.
+    cancel_reason: Optional[str] = None
     is_new: bool
     items_count: int
     details: List[OrderDetailResponse] = []
@@ -183,3 +187,7 @@ class ProductoNoDisponible(BaseModel):
 class RepetirPedidoResponse(BaseModel):
     productos_disponibles: List[ProductoDisponible]
     productos_no_disponibles: List[ProductoNoDisponible]
+
+# Schema para la cancelación de un pedido por el dependiente — la nota es opcional.
+class CancelOrderStaffRequest(BaseModel):
+    cancel_reason: Optional[str] = None

@@ -1,5 +1,4 @@
 import '../../models/order_model.dart';
-
 // elemento de lista para la vista de pedidos del personal
 class order_staff_item {
   final int order_id;
@@ -11,6 +10,8 @@ class order_staff_item {
   final int items_count;
   final DateTime order_date_time;
   final DateTime? order_pickup_time;
+  // nota de cancelacion escrita por el dependiente — visible para el cliente
+  final String? cancel_reason;
   final List<order_detail> details;
 
   order_staff_item({
@@ -23,6 +24,7 @@ class order_staff_item {
     required this.items_count,
     required this.order_date_time,
     this.order_pickup_time,
+    this.cancel_reason,
     this.details = const []
   });
 
@@ -37,6 +39,7 @@ class order_staff_item {
       items_count:       json['items_count'] ?? 0,
       order_date_time:   DateTime.parse(json['order_date_time']),
       order_pickup_time: json['order_pickup_time'] != null ? DateTime.parse(json['order_pickup_time']) : null,
+      cancel_reason:     json['cancel_reason'],
       details: (json['details'] as List?)?.map((d) => order_detail.from_json(d)).toList() ?? [],
     );
   }
@@ -47,6 +50,7 @@ class order_staff_item {
       case 'pendiente':      return 0xFFFF9800;
       case 'en_preparacion': return 0xFF2196F3;
       case 'listo':          return 0xFF4CAF50;
+      case 'cancelado':      return 0xFFF44336;
       default:               return 0xFF9E9E9E;
     }
   }

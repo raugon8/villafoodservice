@@ -88,6 +88,70 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     }
   }
 
+  /// muestra un dialogo para escribir la nota de cancelacion (opcional) y cancela el pedido
+  /// restaura el stock de ingredientes en el backend
+  Future<void> _cancelar_pedido(AppLocalizations loc) async {
+    final nota_controller = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 40),
+        title: const Text('Cancelar pedido'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('¿Seguro que quieres cancelar este pedido? Se restaurará el stock de ingredientes.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nota_controller,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Motivo de cancelación (opcional)',
+                hintText: 'El cliente podrá ver este mensaje...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.ord_det_cancel)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancelar pedido', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final auth = Provider.of<auth_provider>(context, listen: false);
+      final updated = await service_instancia.cancel_order(
+        widget.order_id,
+        widget.service,
+        user_id: auth.user_id ?? 1,
+        current_role: auth.current_role ?? 'dependiente',
+        cancel_reason: nota_controller.text.trim().isEmpty ? null : nota_controller.text.trim(),
+      );
+      setState(() { order = updated; });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pedido cancelado y stock restaurado'), backgroundColor: Colors.orange),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${loc.ord_det_error}$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   /// dibuja el boton de accion dependiendo del estado actual del pedido
   ///
   /// args:
@@ -96,23 +160,50 @@ class _order_detail_screen_state extends State<order_detail_screen> {
     if (order == null) return const SizedBox();
     switch (order!.order_status) {
       case 'pendiente':
-        return ElevatedButton.icon(
-          icon: const Icon(Icons.play_arrow),
-          label: Text(loc.ord_det_btn_start),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-          onPressed: () => _change_status('en_preparacion', loc),
+        return Column(
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.play_arrow),
+              label: Text(loc.ord_det_btn_start),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              onPressed: () => _change_status('en_preparacion', loc),
+            ),
+            const SizedBox(height: 8),
+            // boton de cancelar disponible en estado pendiente
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+              label: const Text('Cancelar pedido', style: TextStyle(color: Colors.red)),
+              onPressed: () => _cancelar_pedido(loc),
+            ),
+          ],
         );
       case 'en_preparacion':
-        return ElevatedButton.icon(
-          icon: const Icon(Icons.check),
-          label: Text(loc.ord_det_btn_ready),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: () => _change_status('listo', loc),
+        return Column(
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check),
+              label: Text(loc.ord_det_btn_ready),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              onPressed: () => _change_status('listo', loc),
+            ),
+            const SizedBox(height: 8),
+            // boton de cancelar disponible en estado en_preparacion
+            OutlinedButton.icon(
+              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+              label: const Text('Cancelar pedido', style: TextStyle(color: Colors.red)),
+              onPressed: () => _cancelar_pedido(loc),
+            ),
+          ],
         );
       case 'listo':
         return Chip(
           label: Text(loc.ord_det_btn_completed, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.green,
+        );
+      case 'cancelado':
+        return Chip(
+          label: const Text('Pedido cancelado', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.red,
         );
       default:
         return const SizedBox();
@@ -176,6 +267,18 @@ class _order_detail_screen_state extends State<order_detail_screen> {
                           leading: const Icon(Icons.info_outline, color: Colors.orange),
                           title: Text(loc.ord_det_notes_title),
                           subtitle: Text(order!.order_notes),
+                        ),
+                      ),
+                    ],
+                    // muestra la nota de cancelacion si el pedido fue cancelado con motivo
+                    if (order!.order_status == 'cancelado' && order!.cancel_reason != null && order!.cancel_reason!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Card(
+                        color: Colors.red[50],
+                        child: ListTile(
+                          leading: const Icon(Icons.cancel_outlined, color: Colors.red),
+                          title: const Text('Motivo de cancelación'),
+                          subtitle: Text(order!.cancel_reason!),
                         ),
                       ),
                     ],

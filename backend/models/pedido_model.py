@@ -20,6 +20,8 @@ class OrderModel(Base):
     order_service   = Column(String(20), nullable=True)
     # Indica si el dependiente ya vio el pedido.
     order_staff_seen = Column(Boolean, default=False, nullable=False)
+    # Nota de cancelación escrita por el dependiente — visible para el cliente en su historial.
+    cancel_reason   = Column(Text, nullable=True)
 
     # Uso cascade="all, delete-orphan" para que si se borra el pedido, se borren también sus detalles(son tablas diferentes).
     details = relationship("OrderDetailModel", back_populates="order", cascade="all, delete-orphan")

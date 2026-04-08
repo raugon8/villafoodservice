@@ -11,7 +11,8 @@ from backend.object_class.orders import (
     OrderStaffResponse,
     ValidatedCartItemResponse,
     HistorialPedido,
-    RepetirPedidoResponse
+    RepetirPedidoResponse,
+    CancelOrderStaffRequest
 )
 from backend.services import order_service, order_staff_service
 from backend.database_manager.database import get_db
@@ -133,6 +134,24 @@ def update_staff_order_status(
     RequireRole(["dependiente", "admin"])
     return order_staff_service.actualizar_estado_pedido_staff(
         db, order_id, status_data.order_status, service
+    )
+
+
+@router.post("/staff/{order_id}/cancelar", response_model=OrderStaffResponse)
+def cancel_staff_order(
+    order_id: int,
+    cancel_data: CancelOrderStaffRequest,
+    service: str = Query(..., description="Servicio del dependiente"),
+    user_id: int = Query(...),
+    current_role: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Cancela un pedido desde el lado del dependiente.
+    Solo se pueden cancelar pedidos en estado pendiente o en_preparacion.
+    Restaura el stock de ingredientes y guarda la nota de cancelación opcional."""
+    RequireRole(["dependiente", "admin"])
+    return order_staff_service.cancelar_pedido_staff(
+        db, order_id, service, cancel_data.cancel_reason
     )
 
 

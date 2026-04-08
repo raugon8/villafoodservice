@@ -268,6 +268,7 @@ def obtener_historial(db: Session, user_id: int) -> List[dict]:
             "fecha": pedido.order_date_time,
             "estado": pedido.order_status,
             "total": pedido.order_total,
+            "cancel_reason": pedido.cancel_reason,
             "productos": productos_detalle
         })
 

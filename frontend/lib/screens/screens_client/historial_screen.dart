@@ -204,9 +204,17 @@ class _historial_screen_state extends State<historial_screen> {
                 itemBuilder: (context, index) {
                   final item = snapshot.data![index];
                   final expandido = _expandidos.contains(item.pedido_id);
+                  final cancelado = item.estado == 'cancelado';
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
+                    // borde rojo sutil para pedidos cancelados
+                    shape: cancelado
+                      ? RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Colors.red, width: 1.5),
+                        )
+                      : null,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -221,7 +229,10 @@ class _historial_screen_state extends State<historial_screen> {
                                 Text('${loc.ord_det_order}${item.pedido_id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                 Row(
                                   children: [
-                                    Chip(label: Text(item.estado, style: const TextStyle(fontSize: 12))),
+                                    Chip(
+                                      label: Text(item.estado, style: const TextStyle(fontSize: 12, color: Colors.white)),
+                                      backgroundColor: cancelado ? Colors.red : Colors.grey.shade600,
+                                    ),
                                     Icon(expandido ? Icons.expand_less : Icons.expand_more),
                                   ],
                                 ),
@@ -234,6 +245,34 @@ class _historial_screen_state extends State<historial_screen> {
                             '${item.fecha.day.toString().padLeft(2,'0')}/${item.fecha.month.toString().padLeft(2,'0')}/${item.fecha.year}  ${item.fecha.hour.toString().padLeft(2,'0')}:${item.fecha.minute.toString().padLeft(2,'0')}',
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
+                          // nota de cancelacion — visible siempre si el pedido fue cancelado con motivo
+                          if (cancelado && item.cancel_reason != null && item.cancel_reason!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Motivo de cancelación', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red)),
+                                        Text(item.cancel_reason!, style: const TextStyle(fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 8),
 
                           // desglose de productos — visible solo cuando la tarjeta esta expandida
@@ -277,11 +316,13 @@ class _historial_screen_state extends State<historial_screen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text('${loc.ord_det_total}${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              ElevatedButton.icon(
-                                onPressed: () => _procesar_repeticion(item.pedido_id, loc),
-                                icon: const Icon(Icons.replay),
-                                label: Text(loc.hist_btn_repeat),
-                              ),
+                              // no mostramos el boton repetir si el pedido fue cancelado
+                              if (!cancelado)
+                                ElevatedButton.icon(
+                                  onPressed: () => _procesar_repeticion(item.pedido_id, loc),
+                                  icon: const Icon(Icons.replay),
+                                  label: Text(loc.hist_btn_repeat),
+                                ),
                             ],
                           ),
                         ],

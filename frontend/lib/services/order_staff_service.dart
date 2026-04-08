@@ -74,4 +74,25 @@ class order_staff_service {
     }
     throw Exception(jsonDecode(response.body)['detail'] ?? 'error actualizando estado');
   }
+
+  // cancela el pedido desde el lado del dependiente y restaura el stock
+  // la nota de cancelacion es opcional — si se omite el pedido se cancela sin explicacion
+  Future<order_staff_item> cancel_order(
+    int order_id,
+    String service, {
+    required int user_id,
+    required String current_role,
+    String? cancel_reason,
+    String? token,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$base_url/pedidos/staff/$order_id/cancelar?service=$service&user_id=$user_id&current_role=$current_role'),
+      headers: _build_headers(token: token, json: true),
+      body: jsonEncode({'cancel_reason': cancel_reason}),
+    );
+    if (response.statusCode == 200) {
+      return order_staff_item.from_json(jsonDecode(response.body));
+    }
+    throw Exception(jsonDecode(response.body)['detail'] ?? 'error cancelando pedido');
+  }
 }

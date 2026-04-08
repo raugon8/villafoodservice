@@ -118,6 +118,7 @@ def obtener_pedido_staff_detalle(db: Session, order_id: int, service: str) -> di
         "order_notes":       order.order_notes,
         "order_service":     order.order_service,
         "order_pickup_time": order.order_pickup_time,
+        "cancel_reason":     order.cancel_reason,
         "is_new":            False,
         "items_count":       len(details_list),
         "details":           details_list
@@ -153,6 +154,56 @@ def actualizar_estado_pedido_staff(
         )
 
     order.order_status = nuevo_estado
+    db.commit()
+    db.refresh(order)
+
+    return obtener_pedido_staff_detalle(db, order_id, service)
+
+
+def cancelar_pedido_staff(
+    db: Session,
+    order_id: int,
+    service: str,
+    cancel_reason: Optional[str] = None
+) -> dict:
+    """Cancela un pedido desde el lado del dependiente.
+    Solo se pueden cancelar pedidos en estado pendiente o en_preparacion.
+    Restaura el stock de ingredientes descontado al confirmar el pedido.
+    Guarda la nota de cancelación opcional para que el cliente la vea en su historial."""
+    from backend.models.producto_model import ProductoIngrediente
+    from backend.models.ingredient_model import Ingrediente
+
+    order = db.query(OrderModel).filter(OrderModel.order_id == order_id).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Pedido {order_id} no encontrado")
+
+    if order.order_service != service:
+        raise HTTPException(status_code=403, detail="Este pedido no pertenece a tu servicio")
+
+    if order.order_status not in ['pendiente', 'en_preparacion']:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede cancelar un pedido en estado '{order.order_status}'"
+        )
+
+    # Restauramos el stock de ingredientes por cada producto del pedido
+    details = db.query(OrderDetailModel).filter(OrderDetailModel.order_id == order_id).all()
+    for detail in details:
+        relaciones = db.query(ProductoIngrediente).filter(
+            ProductoIngrediente.productoIngrediente_productoId == detail.product_id
+        ).all()
+        for rel in relaciones:
+            ingrediente = db.query(Ingrediente).filter(
+                Ingrediente.ingrediente_id == rel.productoIngrediente_ingredienteId
+            ).first()
+            if ingrediente:
+                # Devolvemos al stock la cantidad usada: cantidad_necesaria * unidades_pedidas
+                ingrediente.ingrediente_stockActual += rel.productoIngrediente_cantidad * detail.detail_quantity
+
+    # Marcamos el pedido como cancelado y guardamos la nota si la hay
+    order.order_status = 'cancelado'
+    order.cancel_reason = cancel_reason
     db.commit()
     db.refresh(order)
 

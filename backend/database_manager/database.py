@@ -47,6 +47,7 @@ def migrate_db():
         ("orders",   "order_staff_seen",  "ALTER TABLE orders ADD COLUMN order_staff_seen BOOLEAN DEFAULT FALSE"),
         ("usuarios", "usuario_servicio",  "ALTER TABLE usuarios ADD COLUMN usuario_servicio VARCHAR(20)"),
         ("productos", "image_url",        "ALTER TABLE productos ADD COLUMN image_url VARCHAR(255)"),
+        ("orders", "cancel_reason", "ALTER TABLE orders ADD COLUMN cancel_reason TEXT"),
     ]
 
     with engine.connect() as conn:
