@@ -157,6 +157,44 @@ class _historial_screen_state extends State<historial_screen> {
     }
   }
 
+  // le dice al backend que el cliente ya recogió el pedido y recarga el historial
+  Future<void> _marcar_entregado(int pedido_id, AppLocalizations loc) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar recogida'),
+        content: const Text('¿Confirmas que ya has recogido este pedido?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.ord_det_cancel)),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sí, lo recogí')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final auth = Provider.of<auth_provider>(context, listen: false);
+      await _service.marcar_entregado(
+        pedido_id,
+        auth.user_id ?? 1,
+        auth.current_role ?? 'cliente',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pedido marcado como recogido'), backgroundColor: Colors.green),
+      );
+      // recargamos el historial para que se vea el nuevo estado
+      _cargar_historial();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -226,6 +264,7 @@ class _historial_screen_state extends State<historial_screen> {
                     final item = snapshot.data![index];
                     final expandido = _expandidos.contains(item.pedido_id);
                     final cancelado = item.estado == 'cancelado';
+                    final listo = item.estado == 'listo';
                     
                     // el front busca el campo en el objeto item
                     final bool tieneNotas = item.cancel_reason != null && item.cancel_reason!.isNotEmpty;
@@ -336,12 +375,27 @@ class _historial_screen_state extends State<historial_screen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('${loc.ord_det_total}${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                if (!cancelado)
-                                  ElevatedButton.icon(
-                                    onPressed: () => _procesar_repeticion(item.pedido_id, loc),
-                                    icon: const Icon(Icons.replay),
-                                    label: Text(loc.hist_btn_repeat),
-                                  ),
+                                Row(
+                                  children: [
+                                    // boton para confirmar recogida cuando el pedido esta listo
+                                    if (listo)
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => _marcar_entregado(item.pedido_id, loc),
+                                          icon: const Icon(Icons.check_circle_outline),
+                                          label: const Text('Ya lo recogí'),
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                        ),
+                                      ),
+                                    if (!cancelado)
+                                      ElevatedButton.icon(
+                                        onPressed: () => _procesar_repeticion(item.pedido_id, loc),
+                                        icon: const Icon(Icons.replay),
+                                        label: Text(loc.hist_btn_repeat),
+                                      ),
+                                  ],
+                                ),
                               ],
                             ),
                           ],

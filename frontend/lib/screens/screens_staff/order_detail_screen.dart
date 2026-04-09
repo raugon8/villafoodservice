@@ -196,9 +196,26 @@ class _order_detail_screen_state extends State<order_detail_screen> {
           ],
         );
       case 'listo':
+        return Column(
+          children: [
+            Chip(
+              label: Text(loc.ord_det_btn_completed, style: const TextStyle(color: Colors.white)),
+              backgroundColor: Colors.green,
+            ),
+            const SizedBox(height: 8),
+            // el dependiente puede confirmar la entrega si el cliente ya recogió el pedido
+            ElevatedButton.icon(
+              icon: const Icon(Icons.handshake_outlined),
+              label: const Text('Marcar como entregado'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              onPressed: () => _change_status('entregado', loc),
+            ),
+          ],
+        );
+      case 'entregado':
         return Chip(
-          label: Text(loc.ord_det_btn_completed, style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.green,
+          label: const Text('Pedido entregado', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.teal,
         );
       case 'cancelado':
         return Chip(

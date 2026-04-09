@@ -22,7 +22,7 @@ VALID_TRANSITIONS = {
 VALID_STAFF_TRANSITIONS = {
     'pendiente':      ['en_preparacion', 'cancelado'],
     'en_preparacion': ['listo', 'cancelado'],
-    'listo':          [],
+    'listo':          ['entregado'],
 }
 
 
