@@ -13,22 +13,11 @@ Sistema integral de gestión de servicios de alimentación para centros educativ
 
 ---
 
-## 💻 Arrancar en local
+## 🌐 Despliegue
 
-**Para el Backend:**
-```bash
-cd backend
-.venv\Scripts\Activate.ps1   # En Windows
-# source .venv/bin/activate  # En Mac/Linux
-uvicorn main_class.main:app --reload
-```
-
-**Para el Frontend:**
-```bash
-cd frontend
-flutter pub get
-flutter run -d chrome
-```
+* **Backend:** Desplegado en **Railway** — arranca automáticamente con cada push a `main`.
+* **Base de Datos:** Gestionada en **Supabase** (PostgreSQL).
+* **Frontend:** Build web estático desplegado en **Netlify** / GitHub Pages.
 
 ---
 
@@ -51,7 +40,7 @@ Al arrancar el backend por primera vez con una base de datos vacía, el sistema 
 La aplicación informa al cliente cuando su pedido cambia de estado (`En preparación` / `Listo` / `Cancelado`):
 
 * **En primer plano (Foreground):** Se realiza un *polling* ligero al servidor cada 15 segundos para mantener la interfaz actualizada en tiempo real.
-* **En segundo plano (Background - Android):** Utiliza `workmanager` para revisar el estado periódicamente sin agotar la batería.
+* **En segundo plano (Background - Android):** Utiliza `workmanager` para revisar el estado periódicamente.
 
 > **Limitación en iOS / Web:** Las notificaciones en background puro pueden verse limitadas por las restricciones del sistema operativo de Apple. En Web, la sincronización automática solo ocurre mientras la pestaña permanezca activa.
 
@@ -101,12 +90,12 @@ El sistema está diseñado en torno a un sistema de control de acceso basado en 
 
 1. **Autenticación Segura:** El usuario inicia sesión y el backend emite un token `JWT` firmado. Si el usuario posee múltiples roles, la app le presenta un **Selector de Rol** para decidir con qué privilegios entrar en esa sesión.
 
-2. **Catálogo Dinámico (Cliente):** El usuario navega por un catálogo responsive. Puede filtrar por servicios *(Cafetería, Restaurante)*, buscar productos y ver advertencias de alérgenos.
+2. **Catálogo Dinámico (Cliente):** El usuario navega por un catálogo responsive. Puede filtrar por servicios *(Cafetería, Restaurante, etc)*, buscar productos y ver advertencias de alérgenos.
 
 3. **Gestión de Carrito y Validación:** Al intentar realizar un pedido, el frontend envía el carrito al backend. FastAPI cruza los productos solicitados con la receta de cada producto y verifica en tiempo real si hay *Stock de Ingredientes* suficiente.
 
 4. **Recepción de Pedidos (Staff):** Si el pedido se aprueba, se descuenta el stock automáticamente. El pedido aparece instantáneamente en el panel del dependiente, marcado como **"Nuevo"**.
 
-5. **Flujo de Preparación:** El dependiente avanza el estado del ticket: `Pendiente` ➔ `En Preparación` ➔ `Listo`.
+5. **Flujo de Preparación:** El dependiente avanza el estado del ticket: `Pendiente` ➔ `En Preparación` ➔ `Listo` | `Cancelado`.
 
 6. **Historial y Cancelaciones:** Los clientes pueden ver su historial, repetir pedidos pasados (el sistema ignora productos que ya no tengan stock) y leer las notas si el personal tuvo que cancelar un pedido, restituyendo automáticamente el stock.
