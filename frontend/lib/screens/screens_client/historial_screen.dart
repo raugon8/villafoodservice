@@ -54,6 +54,18 @@ class _historial_screen_state extends State<historial_screen> {
     });
   }
 
+  // devuelve el color correspondiente al estado del pedido — misma paleta que el panel de staff
+  Color _color_estado(String estado) {
+    switch (estado) {
+      case 'pendiente':      return const Color(0xFFFFC107); // amarillo
+      case 'en_preparacion': return const Color(0xFF2196F3); // azul
+      case 'listo':          return const Color(0xFF4CAF50); // verde
+      case 'entregado':      return const Color(0xFF009688); // teal
+      case 'cancelado':      return const Color(0xFFF44336); // rojo
+      default:               return const Color(0xFF9E9E9E); // gris
+    }
+  }
+
   // creamos un producto fantasma rapido para poder abrir su pantalla de detalle
   producto _producto_desde_historial(historial_producto p) {
     return producto(
@@ -293,7 +305,7 @@ class _historial_screen_state extends State<historial_screen> {
                                     children: [
                                       Chip(
                                         label: Text(item.estado, style: const TextStyle(fontSize: 12, color: Colors.white)),
-                                        backgroundColor: cancelado ? Colors.red : Colors.grey.shade600,
+                                        backgroundColor: _color_estado(item.estado),
                                       ),
                                       Icon(expandido ? Icons.expand_less : Icons.expand_more),
                                     ],
@@ -375,27 +387,31 @@ class _historial_screen_state extends State<historial_screen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('${loc.ord_det_total}${item.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                Row(
-                                  children: [
-                                    // boton para confirmar recogida cuando el pedido esta listo
-                                    if (listo)
-                                      Padding(
-                                        padding: const EdgeInsets.only(right: 8),
-                                        child: ElevatedButton.icon(
-                                          onPressed: () => _marcar_entregado(item.pedido_id, loc),
-                                          icon: const Icon(Icons.check_circle_outline),
-                                          label: const Text('Ya lo recogí'),
-                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                                        ),
+                                // cuando esta listo ponemos los botones en columna para que no se salgan de la card
+                                if (listo)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () => _marcar_entregado(item.pedido_id, loc),
+                                        icon: const Icon(Icons.check_circle_outline),
+                                        label: const Text('Ya lo recogí'),
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                                       ),
-                                    if (!cancelado)
+                                      const SizedBox(height: 6),
                                       ElevatedButton.icon(
                                         onPressed: () => _procesar_repeticion(item.pedido_id, loc),
                                         icon: const Icon(Icons.replay),
                                         label: Text(loc.hist_btn_repeat),
                                       ),
-                                  ],
-                                ),
+                                    ],
+                                  )
+                                else if (!cancelado)
+                                  ElevatedButton.icon(
+                                    onPressed: () => _procesar_repeticion(item.pedido_id, loc),
+                                    icon: const Icon(Icons.replay),
+                                    label: Text(loc.hist_btn_repeat),
+                                  ),
                               ],
                             ),
                           ],
