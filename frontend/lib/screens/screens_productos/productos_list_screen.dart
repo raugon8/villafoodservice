@@ -4,14 +4,12 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../services/producto_service.dart';
 import '../../models/producto.dart';
-import '../../models/cart_manager.dart';
 import '../../providers/auth_provider.dart';
 import '../screens_productos/producto_ingredientes_screen.dart';
 import '../screens_productos/producto_form_screen.dart';
-import '../screens_client/cart_screen.dart';
 
 /// muestra la lista general de productos a la que tienen acceso empleados y admins
-/// permite añadir productos a la cesta, editar, eliminar y ver recetas
+/// permite editar, eliminar y ver recetas
 class productos_list_screen extends StatefulWidget {
   const productos_list_screen({super.key});
 
@@ -78,24 +76,6 @@ class _productos_list_screen_state extends State<productos_list_screen> {
         title: Text(loc.prod_list_title),
         actions: [
           IconButton(icon: Text(is_spanish ? '🇪🇸' : '🇬🇧', style: const TextStyle(fontSize: 24)), onPressed: () => locale_prov.toggle_locale()),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const cart_screen())).then((_) => setState(() {})),
-              ),
-              if (cart_manager.total_items > 0)
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: CircleAvatar(
-                    radius: 8,
-                    backgroundColor: Colors.red,
-                    child: Text('${cart_manager.total_items}', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                  ),
-                )
-            ],
-          )
         ],
       ),
       body: FutureBuilder<List<producto>>(
@@ -128,16 +108,6 @@ class _productos_list_screen_state extends State<productos_list_screen> {
                         ],
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.add_shopping_cart, color: Colors.green),
-                        onPressed: item.disponible
-                            ? () {
-                                cart_manager.add_item(item.producto_id, item.producto_nombre, item.producto_precio_unitario);
-                                setState(() {});
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${item.producto_nombre} ${loc.prod_ing_msg_added}')));
-                              }
-                            : null,
-                      ),
                       // boton explicito para editar ingredientes del producto
                       IconButton(
                         icon: const Icon(Icons.kitchen, color: Colors.orange),
