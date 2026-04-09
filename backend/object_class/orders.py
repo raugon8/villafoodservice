@@ -171,6 +171,8 @@ class HistorialPedido(BaseModel):
     fecha: datetime
     estado: str
     total: Decimal
+    # Nota de cancelación escrita por el dependiente — visible para el cliente en su historial.
+    cancel_reason: Optional[str] = None
     productos: List[HistorialProducto]
 
 class ProductoDisponible(BaseModel):
