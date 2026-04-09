@@ -44,7 +44,7 @@ class my_app extends StatelessWidget {
     return Consumer3<text_scale_provider, locale_provider, theme_provider>(
       builder: (context, text_provider, locale_provider_inst, theme_prov, child) {
         return MaterialApp(
-          title: 'villafood',
+          title: 'VillaFoodService',
           debugShowCheckedModeBanner: false,
           // soporte de modo claro y oscuro
           theme:      app_theme.lightTheme,

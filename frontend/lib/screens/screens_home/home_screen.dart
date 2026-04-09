@@ -54,7 +54,7 @@ class home_screen extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('VillaFood', style: TextStyle(fontSize: 16)),
+                const Text('VillaFoodService', style: TextStyle(fontSize: 16)),
                 Text(
                   '${loc.home_sesion_como}${_rol_display(rol, loc)}',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
