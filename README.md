@@ -1,66 +1,112 @@
-# VillaFoodService
+# 🧑‍🍳 VillaFood Service
 
-Sistema de gestión de servicios de alimentación para un centro educativo. Unifica cafetería, restaurante y repostería en una única plataforma de pedidos.
+Sistema integral de gestión de servicios de alimentación para centros educativos. Unifica las operaciones de cafetería, restaurante y repostería en una única plataforma multiplataforma, optimizando el flujo desde que el cliente hace el pedido hasta que se entrega, controlando el inventario en tiempo real.
 
-## Stack técnico
+---
 
-- **Backend:** FastAPI + Python (Railway)
-- **Base de datos:** PostgreSQL (Supabase)
-- **Frontend:** Flutter (web + APK)
+## 🚀 Stack Técnico
 
-## Arrancar en local
+* **Backend:** Python + FastAPI *(Alojado en Railway)*
+* **Base de Datos:** PostgreSQL *(Alojado en Supabase)* + SQLAlchemy
+* **Frontend:** Flutter *(Compatible con Web Desktop/Mobile y App Android APK)*
+* **Estado y UI:** `Provider`, Navegación nativa, Soporte para Modo Claro/Oscuro dinámico y Multi-idioma (ES/EN).
 
-**Backend:**
+---
+
+## 💻 Arrancar en local
+
+**Para el Backend:**
 ```bash
 cd backend
-.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1   # En Windows
+# source .venv/bin/activate  # En Mac/Linux
 uvicorn main_class.main:app --reload
 ```
 
-**Frontend:**
+**Para el Frontend:**
 ```bash
 cd frontend
+flutter pub get
 flutter run -d chrome
 ```
 
-## Usuarios de prueba / Demo
+---
 
-El sistema crea automáticamente los siguientes usuarios la primera vez que arranca con la base de datos vacía.
+## 📦 Datos de Demostración (Seed)
 
-| Rol         | Correo                    | Contraseña       |
-|-------------|---------------------------|------------------|
-| Admin       | root@villafoodservice.com | VillaFood2024!   |
-| Cliente     | cliente@demo.com          | cliente123       |
-| Dependiente | dependiente@demo.com      | dependiente123   |
-| Almacén     | almacen@demo.com          | almacen123       |
+Al arrancar el backend por primera vez con una base de datos vacía, el sistema ejecuta un script de *semilla* automático que inserta:
 
-> El seed se ejecuta automáticamente al arrancar el servidor si la base de datos está vacía. Ejecutarlo una segunda vez no duplica datos.
+* **3 Servicios:** Cafetería, Restaurante, Repostería.
+* **8 Categorías** distribuidas entre los servicios.
+* **9 Ingredientes** con stock inicial.
+* **12 Productos** base listos para ser consumidos.
+* **14 Alérgenos** europeos de declaración obligatoria.
 
-## Datos de demostración
+> **Nota:** Ejecutar el servidor una segunda vez no duplica estos datos, el sistema verifica su existencia.
 
-Al arrancar por primera vez se insertan automáticamente:
-- 3 servicios: Cafetería, Restaurante, Repostería
-- 8 categorías distribuidas entre los servicios
-- 9 ingredientes con stock inicial
-- 12 productos listos para pedir
-- 14 alérgenos europeos de declaración obligatoria
+---
 
-## Build de Flutter Web
+## 🔔 Notificaciones de Estado de Pedido
 
-Para compilar la app web apuntando al backend de producción:
-```bash
-flutter build web --release \
-  --dart-define=API_URL=https://<proyecto>.railway.app \
-  --dart-define=SUPABASE_URL=https://tvflsjhtybzwbqxciciv.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=<publishable_key>
+La aplicación informa al cliente cuando su pedido cambia de estado (`En preparación` / `Listo` / `Cancelado`):
+
+* **En primer plano (Foreground):** Se realiza un *polling* ligero al servidor cada 15 segundos para mantener la interfaz actualizada en tiempo real.
+* **En segundo plano (Background - Android):** Utiliza `workmanager` para revisar el estado periódicamente sin agotar la batería.
+
+> **Limitación en iOS / Web:** Las notificaciones en background puro pueden verse limitadas por las restricciones del sistema operativo de Apple. En Web, la sincronización automática solo ocurre mientras la pestaña permanezca activa.
+
+---
+
+## 🏗️ Estructura del Proyecto
+
+El proyecto está dividido en dos grandes bloques para separar la lógica de negocio de la interfaz de usuario:
+
+### 📱 Frontend (Flutter)
+La arquitectura del cliente se basa en la separación por funcionalidades y roles:
+
+```text
+frontend/lib/
+├── config/               // Constantes globales y URLs base de la API.
+├── l10n/                 // Archivos de internacionalización (traducciones ES/EN).
+├── models/               // Modelos de datos (Producto, User, Order, CartManager...).
+├── providers/            // Gestión de estado global (Auth, Theme, Locale, Scale).
+├── screens/              // Vistas de la app agrupadas por contexto de usuario:
+│   ├── admin/            // Dashboard, gestión de usuarios y categorías.
+│   ├── screens_auth/     // Login, registro y selector de roles.
+│   ├── screens_client/   // Catálogo, carrito, detalle de producto e historial.
+│   ├── screens_staff/    // Panel de gestión de pedidos en tiempo real.
+│   └── screens_ingredientes/ // Gestión de stock para el rol de almacén.
+├── services/             // Clases que gestionan las peticiones HTTP al backend.
+├── theme/                // Definición visual y paletas de colores (AppTheme).
+└── widgets/              // Componentes visuales reutilizables.
 ```
 
-> Sustituir `<proyecto>` por la URL del backend en Railway y `<publishable_key>` por la clave publicable de Supabase. Ninguna de estas claves debe subirse al repositorio.
+### ⚙️ Backend (FastAPI)
+```text
+backend/
+├── main_class/           // Punto de entrada de la API (main.py).
+├── routers/              // Controladores/Endpoints (auth, pedidos, productos).
+├── services/             // Lógica de negocio pura (validaciones, cálculos).
+├── models/               // Modelos de base de datos (SQLAlchemy).
+├── object_class/         // Esquemas de validación de datos (Pydantic).
+├── middleware/           // Verificación de JWT y control de acceso por roles.
+└── database_manager/     // Configuración y conexión con Supabase.
+```
 
-## Notificaciones de estado de pedido
+---
 
-La app notifica al cliente cuando su pedido cambia a "En preparación" o "Listo" mediante polling cada 15 segundos (app en primer plano) y workmanager cada 15 minutos (app en background en Android).
+## 🔄 Flujo de la Aplicación
 
-**Limitación en iOS:** las notificaciones en background pueden no funcionar de forma consistente en iOS debido a las restricciones del sistema operativo de Apple. En Android el comportamiento es el esperado.
+El sistema está diseñado en torno a un sistema de control de acceso basado en roles (**RBAC**). El flujo principal es el siguiente:
 
-En web, el polling solo funciona mientras la app está abierta en el navegador.
+1. **Autenticación Segura:** El usuario inicia sesión y el backend emite un token `JWT` firmado. Si el usuario posee múltiples roles, la app le presenta un **Selector de Rol** para decidir con qué privilegios entrar en esa sesión.
+
+2. **Catálogo Dinámico (Cliente):** El usuario navega por un catálogo responsive. Puede filtrar por servicios *(Cafetería, Restaurante)*, buscar productos y ver advertencias de alérgenos.
+
+3. **Gestión de Carrito y Validación:** Al intentar realizar un pedido, el frontend envía el carrito al backend. FastAPI cruza los productos solicitados con la receta de cada producto y verifica en tiempo real si hay *Stock de Ingredientes* suficiente.
+
+4. **Recepción de Pedidos (Staff):** Si el pedido se aprueba, se descuenta el stock automáticamente. El pedido aparece instantáneamente en el panel del dependiente, marcado como **"Nuevo"**.
+
+5. **Flujo de Preparación:** El dependiente avanza el estado del ticket: `Pendiente` ➔ `En Preparación` ➔ `Listo`.
+
+6. **Historial y Cancelaciones:** Los clientes pueden ver su historial, repetir pedidos pasados (el sistema ignora productos que ya no tengan stock) y leer las notas si el personal tuvo que cancelar un pedido, restituyendo automáticamente el stock.
