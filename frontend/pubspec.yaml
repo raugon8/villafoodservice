@@ -36,8 +36,14 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: "^0.13.1"
   flutter_lints: ^2.0.0
 # configuracion de flutter
+flutter_launcher_icons:
+  android: "launcher_icon"
+  image_path: "assets/Logo_VF.png" 
+  adaptive_icon_background: "#ffffff" # color de fondo para iconos adaptativos
+  adaptive_icon_foreground: "assets/Logo_VF.png"
 flutter:
   uses-material-design: true
   
