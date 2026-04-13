@@ -17,7 +17,7 @@ Sistema integral de gestión de servicios de alimentación para centros educativ
 
 * **Backend:** Desplegado en **Railway** — arranca automáticamente con cada push a `main`.
 * **Base de Datos:** Gestionada en **Supabase** (PostgreSQL).
-* **Frontend:** Build web estático desplegado en **Netlify** / GitHub Pages.
+* **Frontend:** Build web estático desplegado en **Railway**.
 
 ---
 
@@ -86,7 +86,7 @@ backend/
 
 ## 🔄 Flujo de la Aplicación
 
-El sistema está diseñado en torno a un sistema de control de acceso basado en roles (**RBAC**). El flujo principal es el siguiente:
+El sistema está diseñado en torno a un sistema de control de acceso basado en roles. El flujo principal es el siguiente:
 
 1. **Autenticación Segura:** El usuario inicia sesión y el backend emite un token `JWT` firmado. Si el usuario posee múltiples roles, la app le presenta un **Selector de Rol** para decidir con qué privilegios entrar en esa sesión.
 
