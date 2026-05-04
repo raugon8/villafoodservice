@@ -10,13 +10,11 @@ load_dotenv()
 
 # 1. Configuración de la Variable de Entorno
 # Usamos el nombre exacto que tienes en Railway
-raw_db_url = os.getenv("Villafood_db")
-
-if not raw_db_url:
-    raise ValueError(
-        "¡Error Crítico! No se detectó la variable 'Villafood_db'. "
-        "Verifica que el nombre coincida exactamente en el panel de Railway."
-    )
+# Si no hay .env (ejecución como .exe), usa la URL de producción directamente
+raw_db_url = os.getenv(
+    "Villafood_db",
+    "postgresql://postgres.tvflsjhtybzwbqxciciv:6qDuhJfhYVzEE5Se@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+)
 
 # 2. Fix de Protocolo para SQLAlchemy 1.4+
 # Railway/Supabase usan 'postgres://', pero SQLAlchemy exige 'postgresql://'
