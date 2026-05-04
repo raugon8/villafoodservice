@@ -1,8 +1,12 @@
 import os
 import bcrypt
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
+# Carga el .env en local (en Railway las variables ya están inyectadas)
+load_dotenv()
 
 # 1. Configuración de la Variable de Entorno
 # Usamos el nombre exacto que tienes en Railway
