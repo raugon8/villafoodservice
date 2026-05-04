@@ -2,6 +2,6 @@
 class AppConstants {
   static const String apiUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://villafoodservice-production.up.railway.app',
+    defaultValue: 'http://localhost:8000',
   );
 }
